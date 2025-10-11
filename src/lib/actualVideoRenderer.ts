@@ -131,7 +131,38 @@ export class ActualVideoRenderer {
 
     console.log('📦 Bundling Remotion composition...');
 
-    const entryPoint = path.join(process.cwd(), 'src', 'remotion', 'index.ts');
+    // Determine project root more reliably
+    // __dirname in ESM is not available, so we use process.cwd() but validate
+    let projectRoot = process.cwd();
+
+    // If cwd is inside node_modules (which can happen with whisper-node), go up
+    if (projectRoot.includes('node_modules')) {
+      // Find the actual project root by looking for package.json with our project name
+      let current = projectRoot;
+      while (current !== '/') {
+        current = path.dirname(current);
+        const pkgPath = path.join(current, 'package.json');
+        if (fs.existsSync(pkgPath)) {
+          try {
+            const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+            // Check if this is our project (has remotion dependency or specific name)
+            if (pkg.dependencies?.remotion || pkg.name === 'vite_react_shadcn_ts') {
+              projectRoot = current;
+              break;
+            }
+          } catch {}
+        }
+      }
+    }
+
+    const entryPoint = path.join(projectRoot, 'src', 'remotion', 'index.ts');
+
+    console.log('🔍 Project root:', projectRoot);
+    console.log('🔍 Entry point:', entryPoint);
+
+    if (!fs.existsSync(entryPoint)) {
+      throw new Error(`Remotion entry point not found: ${entryPoint}\nProject root: ${projectRoot}`);
+    }
 
     onProgress?.({
       progress: 5,
