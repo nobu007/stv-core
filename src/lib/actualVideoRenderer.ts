@@ -202,12 +202,15 @@ export class ActualVideoRenderer {
 
     // シーンから合計時間を計算
     const totalDurationMs = scenes.reduce((acc, scene) => {
-      const sceneDuration = (scene.endTime - scene.startTime) * 1000;
-      return Math.max(acc, scene.startTime * 1000 + sceneDuration);
+      const startTime = scene.startTime || 0;
+      const endTime = scene.endTime || 10; // デフォルト10秒
+      const sceneDuration = (endTime - startTime) * 1000;
+      return Math.max(acc, startTime * 1000 + sceneDuration);
     }, 0);
 
     const fps = 30;
-    const durationInFrames = Math.ceil((totalDurationMs / 1000) * fps);
+    // 最小1秒保証
+    const durationInFrames = Math.max(30, Math.ceil((totalDurationMs / 1000) * fps));
 
     const inputProps = {
       scenes,
