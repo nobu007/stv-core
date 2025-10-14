@@ -81,6 +81,15 @@ export class ActualVideoRenderer {
       });
 
       const outputPath = options.outputPath || this.generateOutputPath();
+      // Ensure output directory exists (fixed-path overwrite policy)
+      try {
+        const outDir = path.dirname(outputPath);
+        if (!fs.existsSync(outDir)) {
+          fs.mkdirSync(outDir, { recursive: true });
+        }
+      } catch (e) {
+        console.warn('⚠️  Could not ensure output directory:', e);
+      }
       const videoPath = await this.renderComposition(
         bundleLocation,
         composition,
@@ -325,8 +334,7 @@ export class ActualVideoRenderer {
    */
   private generateOutputPath(): string {
     const tmpDir = path.join(os.tmpdir(), 'speech-to-visuals-renders');
-    const timestamp = Date.now();
-    const filename = `diagram-video-${timestamp}.mp4`;
+    const filename = 'diagram-video.mp4'; // fixed name, always overwrite
     return path.join(tmpDir, filename);
   }
 
