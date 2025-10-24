@@ -8,26 +8,38 @@ export type NodeDatum = {
     category?: string;
     icon?: string;
   };
+  width?: number;
+  height?: number;
 };
 
 export type EdgeDatum = {
   from: string;
   to: string;
   label?: string;
+  id?: string;
+  source?: string;
+  target?: string;
+  type?: string;
 };
 
 export type PositionedNode = NodeDatum & {
   x: number;
   y: number;
-  w: number;
-  h: number;
+  width: number;
+  height: number;
+  w?: number;
+  h?: number;
 };
 
 export type LayoutEdge = {
-  from: string;
-  to: string;
+  from?: string;
+  to?: string;
   points: { x: number; y: number }[];
   label?: string;
+  id?: string;
+  source?: string;
+  target?: string;
+  type?: string;
 };
 
 export type DiagramLayout = {
