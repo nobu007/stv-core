@@ -58,17 +58,28 @@ export type SceneGraph = {
   keyphrases: string[];
 };
 
-export type ProcessingStatus = 
-  | 'idle' 
-  | 'uploading' 
-  | 'transcribing' 
-  | 'analyzing' 
-  | 'generating' 
-  | 'complete' 
-  | 'error';
+// ProcessingStatus is now defined in pipeline.ts; re-exported here for backward compatibility
+export type { ProcessingStatus } from './pipeline';
+export type { PipelineResult as ProcessingResult } from './pipeline';
 
-export type ProcessingResult = {
-  scenes: SceneGraph[];
-  audioUrl: string;
-  duration: number;
-};
+// ========================================
+// Type Guards
+// ========================================
+
+const DIAGRAM_TYPES: readonly string[] = ['flow', 'tree', 'timeline', 'matrix', 'cycle'];
+
+export function isDiagramType(value: unknown): value is DiagramType {
+  return typeof value === 'string' && DIAGRAM_TYPES.includes(value);
+}
+
+export function isNodeDatum(value: unknown): value is NodeDatum {
+  if (typeof value !== 'object' || value === null) return false;
+  const obj = value as Record<string, unknown>;
+  return typeof obj.id === 'string' && typeof obj.label === 'string';
+}
+
+export function isEdgeDatum(value: unknown): value is EdgeDatum {
+  if (typeof value !== 'object' || value === null) return false;
+  const obj = value as Record<string, unknown>;
+  return typeof obj.from === 'string' && typeof obj.to === 'string';
+}
