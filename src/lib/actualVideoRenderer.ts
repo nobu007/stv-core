@@ -274,7 +274,7 @@ export class ActualVideoRenderer {
       ...qualitySettings,
       onProgress: (progress) => {
         // progress.totalFrames が undefined の場合は composition.durationInFrames を使用
-        const totalFrames = progress.totalFrames || composition.durationInFrames;
+        const totalFrames = (progress as any).totalFrames || composition.durationInFrames;
         const overallProgress = 30 + (progress.renderedFrames / totalFrames) * 60;
 
         onProgress?.({
