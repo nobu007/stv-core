@@ -162,7 +162,7 @@ export interface WorkspaceActivity {
   action: WorkspaceActivityAction;
   resourceType: 'workspace' | 'member' | 'job' | 'settings' | 'quota';
   resourceId: string;
-  details: Record<string, any>;
+  details: Record<string, unknown>;
   timestamp: Date;
   ipAddress?: string;
   userAgent?: string;

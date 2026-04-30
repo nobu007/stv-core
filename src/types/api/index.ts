@@ -100,7 +100,7 @@ export interface DiagramNode {
   label: string;
   type: string;
   position?: { x: number; y: number };
-  style?: Record<string, any>;
+  style?: Record<string, unknown>;
 }
 
 export interface DiagramEdge {
@@ -109,7 +109,7 @@ export interface DiagramEdge {
   to: string;
   label?: string;
   type?: string;
-  style?: Record<string, any>;
+  style?: Record<string, unknown>;
 }
 
 export interface LayoutData {
@@ -141,7 +141,7 @@ export interface JobStatus {
   error?: {
     code: string;
     message: string;
-    details?: any;
+    details?: unknown;
   };
   createdAt: Date;
   updatedAt: Date;
@@ -164,11 +164,11 @@ export interface APIError {
   code: string;
   message: string;
   statusCode: number;
-  details?: any;
+  details?: unknown;
   timestamp: string;
 }
 
-export interface APIResponse<T = any> {
+export interface APIResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: APIError;
@@ -259,7 +259,7 @@ export interface JobCancelRequest {
 }
 
 export interface SettingsUpdate {
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
 }
 
 export interface JobProgress {

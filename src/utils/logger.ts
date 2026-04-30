@@ -9,22 +9,22 @@ export enum LogLevel {
 const currentLogLevel: LogLevel = LogLevel.INFO; // Default log level
 
 export const logger = {
-  debug: (message: string, ...args: any[]) => {
+  debug: (message: string, ...args: unknown[]) => {
     if (currentLogLevel <= LogLevel.DEBUG) {
       console.debug(`[DEBUG] ${message}`, ...args);
     }
   },
-  info: (message: string, ...args: any[]) => {
+  info: (message: string, ...args: unknown[]) => {
     if (currentLogLevel <= LogLevel.INFO) {
       console.info(`[INFO] ${message}`, ...args);
     }
   },
-  warn: (message: string, ...args: any[]) => {
+  warn: (message: string, ...args: unknown[]) => {
     if (currentLogLevel <= LogLevel.WARN) {
       console.warn(`[WARN] ${message}`, ...args);
     }
   },
-  error: (message: string, ...args: any[]) => {
+  error: (message: string, ...args: unknown[]) => {
     if (currentLogLevel <= LogLevel.ERROR) {
       console.error(`[ERROR] ${message}`, ...args);
     }

@@ -73,7 +73,7 @@ export class VideoRenderer {
   }
 
   private async simulateRender(
-    renderData: any,
+    renderData: Record<string, unknown>,
     totalFrames: number,
     onProgress?: (progress: VideoRenderProgress) => void
   ): Promise<string> {

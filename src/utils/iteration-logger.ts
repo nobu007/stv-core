@@ -25,7 +25,7 @@ export interface IterationLogEntry {
     successRate: number;
     memoryUsage?: number;
   };
-  config: any;
+  config: Record<string, unknown>;
   improvements?: string[];
   nextSteps?: string[];
   errorMessage?: string;

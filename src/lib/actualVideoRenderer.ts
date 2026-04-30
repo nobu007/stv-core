@@ -5,6 +5,7 @@
 
 import { bundle } from '@remotion/bundler';
 import { renderMedia, selectComposition } from '@remotion/renderer';
+import type { AnyComposition } from '@remotion/renderer';
 import { SceneGraph } from '@/types/diagram';
 import path from 'path';
 import os from 'os';
@@ -254,7 +255,7 @@ export class ActualVideoRenderer {
    */
   private async renderComposition(
     bundleLocation: string,
-    composition: any,
+    composition: AnyComposition,
     outputPath: string,
     options: ActualVideoRenderOptions,
     onProgress?: (progress: ActualVideoRenderProgress) => void
@@ -276,7 +277,7 @@ export class ActualVideoRenderer {
       ...qualitySettings,
       onProgress: (progress) => {
         // progress.totalFrames が undefined の場合は composition.durationInFrames を使用
-        const totalFrames = (progress as any).totalFrames || composition.durationInFrames;
+        const totalFrames = ('totalFrames' in progress ? (progress as Record<string, unknown>).totalFrames as number : undefined) || composition.durationInFrames;
         const overallProgress = 30 + (progress.renderedFrames / totalFrames) * 60;
 
         onProgress?.({

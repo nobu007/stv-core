@@ -408,7 +408,7 @@ class ProductionConfigManager {
   private getSystemInfo(): { availableMemory: number; cpuCores: number } {
     try {
       // Estimate available memory (browser limitation)
-      const memoryInfo = (performance as any).memory;
+      const memoryInfo = (performance as unknown as { memory?: { jsHeapSizeLimit: number } }).memory;
       const estimatedMemory = memoryInfo ?
         Math.round(memoryInfo.jsHeapSizeLimit / 1024 / 1024) :
         1024; // Default to 1GB
