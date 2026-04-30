@@ -159,7 +159,9 @@ export class ActualVideoRenderer {
               projectRoot = current;
               break;
             }
-          } catch {}
+          } catch {
+            // ignore errors when traversing up the directory tree
+          }
         }
       }
     }
