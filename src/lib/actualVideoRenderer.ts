@@ -5,7 +5,7 @@
 
 import { bundle } from '@remotion/bundler';
 import { renderMedia, selectComposition } from '@remotion/renderer';
-import type { AnyComposition } from '@remotion/renderer';
+import type { VideoConfig } from 'remotion';
 import { SceneGraph } from '@/types/diagram';
 import path from 'path';
 import os from 'os';
@@ -255,7 +255,7 @@ export class ActualVideoRenderer {
    */
   private async renderComposition(
     bundleLocation: string,
-    composition: AnyComposition,
+    composition: VideoConfig,
     outputPath: string,
     options: ActualVideoRenderOptions,
     onProgress?: (progress: ActualVideoRenderProgress) => void

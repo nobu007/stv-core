@@ -121,9 +121,11 @@ This log tracks iterative improvements following the custom instructions philoso
 
     // Configuration (simplified)
     markdown += `\n**Configuration**:\n`;
-    markdown += `- Transcription Model: ${config.transcription?.model || 'default'}\n`;
-    markdown += `- Min Segment Length: ${config.analysis?.minSegmentLengthMs || 3000}ms\n`;
-    markdown += `- Max Segment Length: ${config.analysis?.maxSegmentLengthMs || 15000}ms\n`;
+    const transcription = config.transcription as Record<string, unknown> | undefined;
+    const analysis = config.analysis as Record<string, unknown> | undefined;
+    markdown += `- Transcription Model: ${(transcription?.model as string) || 'default'}\n`;
+    markdown += `- Min Segment Length: ${(analysis?.minSegmentLengthMs as number) || 3000}ms\n`;
+    markdown += `- Max Segment Length: ${(analysis?.maxSegmentLengthMs as number) || 15000}ms\n`;
 
     // Improvements
     if (improvements && improvements.length > 0) {
