@@ -3,6 +3,7 @@ export type DiagramType = 'flow' | 'flowchart' | 'tree' | 'timeline' | 'matrix' 
 export type NodeDatum = {
   id: string;
   label: string;
+  type?: string;
   meta?: {
     importance?: number;
     category?: string;
