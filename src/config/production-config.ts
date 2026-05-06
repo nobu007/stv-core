@@ -68,6 +68,25 @@ class ProductionConfigManager {
   private currentEnv: ProductionEnvironment;
   private configOverrides: Partial<ProductionEnvironment> = {};
 
+  /**
+   * Safely access process.env in environments where `process` may be undefined
+   * (e.g. browser builds where Vite does not statically replace env vars).
+   */
+  private static getEnvVar(key: string): string | undefined {
+    try {
+      return (typeof process !== 'undefined' && process.env) ? process.env[key] : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Safely get NODE_ENV with browser-compatible fallback (ISS-012)
+   */
+  private static getNodeEnv(): string {
+    return ProductionConfigManager.getEnvVar('NODE_ENV') || 'development';
+  }
+
   constructor() {
     this.currentEnv = this.getEnvironmentConfig();
     this.loadConfigOverrides();
@@ -77,7 +96,7 @@ class ProductionConfigManager {
    * Get environment-specific configuration
    */
   private getEnvironmentConfig(): ProductionEnvironment {
-    const env = (process.env.NODE_ENV || 'development') as ProductionEnvironment['name'];
+    const env = ProductionConfigManager.getNodeEnv() as ProductionEnvironment['name'];
 
     const configs: Record<ProductionEnvironment['name'], ProductionEnvironment> = {
       development: {
@@ -280,16 +299,18 @@ class ProductionConfigManager {
         this.configOverrides = JSON.parse(storedOverrides);
       }
 
-      // Environment variable overrides
-      if (process.env.REACT_APP_MAX_CONCURRENT_JOBS) {
+      // Environment variable overrides (ISS-012: browser-safe access)
+      const maxConcurrent = ProductionConfigManager.getEnvVar('REACT_APP_MAX_CONCURRENT_JOBS');
+      if (maxConcurrent) {
         this.configOverrides.performance = {
           ...this.configOverrides.performance,
-          maxConcurrentJobs: parseInt(process.env.REACT_APP_MAX_CONCURRENT_JOBS)
+          maxConcurrentJobs: parseInt(maxConcurrent)
         };
       }
 
-      if (process.env.REACT_APP_API_BASE_URL) {
-        this.configOverrides.apiBaseUrl = process.env.REACT_APP_API_BASE_URL;
+      const apiBaseUrl = ProductionConfigManager.getEnvVar('REACT_APP_API_BASE_URL');
+      if (apiBaseUrl) {
+        this.configOverrides.apiBaseUrl = apiBaseUrl;
       }
     } catch (error) {
       console.warn('Failed to load configuration overrides:', error);
