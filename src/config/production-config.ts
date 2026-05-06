@@ -343,7 +343,12 @@ class ProductionConfigManager {
    */
   resetConfig(): void {
     this.configOverrides = {};
-    localStorage.removeItem('production-config-overrides');
+    try {
+      localStorage.removeItem('production-config-overrides');
+    } catch (error) {
+      // localStorage may be unavailable in private browsing or restricted environments
+      console.warn('Failed to clear configuration overrides:', error);
+    }
   }
 
   /**
