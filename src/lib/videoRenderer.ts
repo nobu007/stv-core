@@ -53,7 +53,6 @@ export class VideoRenderer {
         outputName: options.outputName || `diagram-video-${Date.now()}`
       };
 
-      console.log('Starting video render with data:', renderData);
 
       // Simulate rendering progress
       return await this.simulateRender(renderData, totalFrames, onProgress);

@@ -60,7 +60,6 @@ export class IterationLogger {
       // Write back to file
       await fs.promises.writeFile(this.logPath, updatedContent, 'utf-8');
 
-      console.log(`📝 [Phase 34] Logged iteration ${entry.iteration} to ${this.logPath}`);
     } catch (error) {
       console.error(`❌ [Phase 34] Failed to log iteration:`, error);
       // Non-fatal: don't throw to avoid breaking pipeline
@@ -90,7 +89,6 @@ This log tracks iterative improvements following the custom instructions philoso
       const dir = path.dirname(this.logPath);
       await fs.promises.mkdir(dir, { recursive: true });
       await fs.promises.writeFile(this.logPath, initialContent, 'utf-8');
-      console.log(`📝 [Phase 34] Created iteration log at ${this.logPath}`);
     }
   }
 

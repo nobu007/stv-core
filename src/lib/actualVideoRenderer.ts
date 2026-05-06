@@ -48,7 +48,6 @@ export class ActualVideoRenderer {
     onProgress?: (progress: ActualVideoRenderProgress) => void
   ): Promise<string> {
     try {
-      console.log('🎬 Starting actual Remotion video render...');
 
       // ステップ1: Bundling
       onProgress?.({
@@ -108,7 +107,6 @@ export class ActualVideoRenderer {
         stage: 'complete',
       });
 
-      console.log('✅ Video render completed:', videoPath);
       return videoPath;
 
     } catch (error) {
@@ -135,11 +133,9 @@ export class ActualVideoRenderer {
   ): Promise<string> {
     // キャッシュがあれば再利用
     if (this.bundleCachePath && fs.existsSync(this.bundleCachePath)) {
-      console.log('📦 Using cached bundle:', this.bundleCachePath);
       return this.bundleCachePath;
     }
 
-    console.log('📦 Bundling Remotion composition...');
 
     // Determine project root more reliably
     // __dirname in ESM is not available, so we use process.cwd() but validate
@@ -169,8 +165,6 @@ export class ActualVideoRenderer {
 
     const entryPoint = path.join(projectRoot, 'src', 'remotion', 'index.ts');
 
-    console.log('🔍 Project root:', projectRoot);
-    console.log('🔍 Entry point:', entryPoint);
 
     if (!fs.existsSync(entryPoint)) {
       throw new Error(`Remotion entry point not found: ${entryPoint}\nProject root: ${projectRoot}`);
@@ -199,7 +193,6 @@ export class ActualVideoRenderer {
       stage: 'bundling',
     });
 
-    console.log('✅ Bundle location:', bundleLocation);
     return bundleLocation;
   }
 
@@ -210,7 +203,6 @@ export class ActualVideoRenderer {
     bundleLocation: string,
     scenes: SceneGraph[]
   ) {
-    console.log('🎯 Selecting composition...');
 
     // シーンから合計時間を計算
     const totalDurationMs = scenes.reduce((acc, scene) => {
@@ -238,15 +230,6 @@ export class ActualVideoRenderer {
     // 計算した時間を上書き
     composition.durationInFrames = durationInFrames;
 
-    console.log('✅ Composition selected:', {
-      id: composition.id,
-      width: composition.width,
-      height: composition.height,
-      fps: composition.fps,
-      durationInFrames: composition.durationInFrames,
-      duration: `${(durationInFrames / fps).toFixed(2)}s`,
-    });
-
     return composition;
   }
 
@@ -260,7 +243,6 @@ export class ActualVideoRenderer {
     options: ActualVideoRenderOptions,
     onProgress?: (progress: ActualVideoRenderProgress) => void
   ): Promise<string> {
-    console.log('🎥 Rendering video to:', outputPath);
 
     const qualitySettings = this.getQualitySettings(options.quality || 'medium');
 
@@ -290,7 +272,6 @@ export class ActualVideoRenderer {
 
         // 10フレームごとにログ出力（スパム防止）
         if (progress.renderedFrames % 10 === 0) {
-          console.log(`📊 Render progress: ${progress.renderedFrames}/${totalFrames} (${(progress.renderedFrames / totalFrames * 100).toFixed(1)}%)`);
         }
       },
     });
