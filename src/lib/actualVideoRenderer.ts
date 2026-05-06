@@ -272,6 +272,7 @@ export class ActualVideoRenderer {
 
         // 10フレームごとにログ出力（スパム防止）
         if (progress.renderedFrames % 10 === 0) {
+          // Intentionally empty: periodic progress checkpoint, logging handled by onProgress callback above
         }
       },
     });
