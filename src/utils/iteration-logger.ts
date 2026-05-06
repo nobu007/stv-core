@@ -163,8 +163,9 @@ This log tracks iterative improvements following the custom instructions philoso
       `Last Updated: ${new Date().toISOString()}`
     );
 
-    // Check if phase section exists
-    const phaseRegex = new RegExp(`## ${phase}\\n`, 'i');
+    // Check if phase section exists (ISS-024: escape regex special chars in phase name)
+    const escapedPhase = phase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const phaseRegex = new RegExp(`## ${escapedPhase}\\n`, 'i');
 
     if (phaseRegex.test(updatedHeader)) {
       // Insert after phase header
