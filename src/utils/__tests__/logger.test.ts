@@ -2,23 +2,23 @@ import { logger, LogLevel } from '../logger';
 
 describe('logger', () => {
   let consoleSpies: {
-    debug: jest.SpyInstance;
-    info: jest.SpyInstance;
-    warn: jest.SpyInstance;
-    error: jest.SpyInstance;
+    debug: vi.SpyInstance;
+    info: vi.SpyInstance;
+    warn: vi.SpyInstance;
+    error: vi.SpyInstance;
   };
 
   beforeEach(() => {
     consoleSpies = {
-      debug: jest.spyOn(console, 'debug').mockImplementation(() => {}),
-      info: jest.spyOn(console, 'info').mockImplementation(() => {}),
-      warn: jest.spyOn(console, 'warn').mockImplementation(() => {}),
-      error: jest.spyOn(console, 'error').mockImplementation(() => {}),
+      debug: vi.spyOn(console, 'debug').mockImplementation(() => {}),
+      info: vi.spyOn(console, 'info').mockImplementation(() => {}),
+      warn: vi.spyOn(console, 'warn').mockImplementation(() => {}),
+      error: vi.spyOn(console, 'error').mockImplementation(() => {}),
     };
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('should log debug messages when level permits', () => {
