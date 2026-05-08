@@ -8,6 +8,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { logger } from './logger';
 
 export interface IterationLogEntry {
   iteration: number;
@@ -61,7 +62,7 @@ export class IterationLogger {
       await fs.promises.writeFile(this.logPath, updatedContent, 'utf-8');
 
     } catch (error) {
-      console.error(`❌ [Phase 34] Failed to log iteration:`, error);
+      logger.error(`[Phase 34] Failed to log iteration:`, error);
       // Non-fatal: don't throw to avoid breaking pipeline
     }
   }
@@ -215,7 +216,7 @@ This log tracks iterative improvements following the custom instructions philoso
 
       return entries;
     } catch (error) {
-      console.error(`❌ [Phase 34] Failed to read iteration history:`, error);
+      logger.error(`[Phase 34] Failed to read iteration history:`, error);
       return [];
     }
   }
