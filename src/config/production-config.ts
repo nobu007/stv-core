@@ -4,6 +4,8 @@
  * Following custom instructions for production readiness enhancement
  */
 
+import { logger } from '@/utils/logger';
+
 export interface ProductionEnvironment {
   name: 'development' | 'staging' | 'production';
   apiBaseUrl: string;
@@ -313,7 +315,7 @@ class ProductionConfigManager {
         this.configOverrides.apiBaseUrl = apiBaseUrl;
       }
     } catch (error) {
-      console.warn('Failed to load configuration overrides:', error);
+      logger.warn('Failed to load configuration overrides:', error);
     }
   }
 
@@ -355,7 +357,7 @@ class ProductionConfigManager {
     try {
       localStorage.setItem('production-config-overrides', JSON.stringify(this.configOverrides));
     } catch (error) {
-      console.warn('Failed to save configuration overrides:', error);
+      logger.warn('Failed to save configuration overrides:', error);
     }
   }
 
@@ -368,7 +370,7 @@ class ProductionConfigManager {
       localStorage.removeItem('production-config-overrides');
     } catch (error) {
       // localStorage may be unavailable in private browsing or restricted environments
-      console.warn('Failed to clear configuration overrides:', error);
+      logger.warn('Failed to clear configuration overrides:', error);
     }
   }
 
