@@ -120,10 +120,21 @@ const SKIP_DIRS = new Set([
 /** Extensions counted as source code. */
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
 
+export interface CollectOptions {
+  /** When true, only walk the `src/` subdirectory. Defaults to true. */
+  srcOnly?: boolean;
+}
+
 /**
  * Recursively walk `rootDir` and return metrics for every source file found.
+ * By default only walks `src/` (REQ-104: aligns audit scope with
+ * SYSTEM_CONSTITUTION limits which are defined for src/ only).
  */
-export function collectMetrics(rootDir: string): CodeSizeMetrics {
+export function collectMetrics(
+  rootDir: string,
+  options?: CollectOptions,
+): CodeSizeMetrics {
+  const srcOnly = options?.srcOnly !== false; // default true
   const files: FileMetrics[] = [];
 
   function walk(dir: string): void {
@@ -151,7 +162,12 @@ export function collectMetrics(rootDir: string): CodeSizeMetrics {
     }
   }
 
-  walk(rootDir);
+  if (srcOnly) {
+    const srcDir = path.join(rootDir, 'src');
+    walk(srcDir);
+  } else {
+    walk(rootDir);
+  }
 
   const fileCount = files.length;
   const lineCount = files.reduce((sum, f) => sum + f.lines, 0);
@@ -183,13 +199,14 @@ export function runAudit(
   rootDir: string,
   packageJsonPath: string,
   limits?: Partial<CodeSizeLimits>,
+  options?: CollectOptions,
 ): CodeSizeAuditResult {
   const effectiveLimits: CodeSizeLimits = {
     ...SYSTEM_CONSTITUTION_LIMITS,
     ...limits,
   };
 
-  const metrics = collectMetrics(rootDir);
+  const metrics = collectMetrics(rootDir, options);
   metrics.dependencyCount = readDependencyCount(packageJsonPath);
 
   return evaluateAudit(metrics, effectiveLimits);
