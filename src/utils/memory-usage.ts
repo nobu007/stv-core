@@ -12,6 +12,8 @@ export interface MemoryMetrics {
   heapTotal: number;
   /** Bytes — 0 when unavailable */
   rss?: number;
+  /** Bytes — 0 when unavailable */
+  external?: number;
 }
 
 /**
@@ -22,7 +24,7 @@ export function getMemoryUsage(): MemoryMetrics {
   // Node.js
   if (typeof process !== 'undefined' && typeof process.memoryUsage === 'function') {
     const mem = process.memoryUsage();
-    return { heapUsed: mem.heapUsed, heapTotal: mem.heapTotal, rss: mem.rss };
+    return { heapUsed: mem.heapUsed, heapTotal: mem.heapTotal, rss: mem.rss, external: mem.external };
   }
 
   // Chrome-only non-standard API

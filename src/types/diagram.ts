@@ -8,6 +8,7 @@ export type NodeDatum = {
     importance?: number;
     category?: string;
     icon?: string;
+    mergedIds?: string[];
   };
   width?: number;
   height?: number;
