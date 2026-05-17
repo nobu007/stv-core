@@ -40,6 +40,20 @@ export const SERVER_LIMITS = {
   BODY_LIMIT: '50mb',
 } as const;
 
+/** Pipeline validation limits (previously scattered as magic numbers in pipeline.ts) */
+export const PIPELINE_LIMITS = {
+  /** Maximum number of scenes per render request */
+  MAX_SCENES: 200,
+  /** Maximum stored iterations before compaction */
+  MAX_ITERATIONS: 500,
+  /** Maximum output filename length */
+  MAX_OUTPUT_NAME_LENGTH: 255,
+  /** Maximum commit message length */
+  MAX_COMMIT_MESSAGE_LENGTH: 1000,
+  /** Maximum allowed FPS value */
+  MAX_FPS: 120,
+} as const;
+
 /** Security-related minimum requirements */
 export const SECURITY_LIMITS = {
   /** Minimum JWT secret length */
