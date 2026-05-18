@@ -11,6 +11,7 @@
 const UNSAFE_PATTERN = /[/\\]/g;
 const DOTDOT_PATTERN = /\.\./g;
 const NULL_BYTE_PATTERN = /\0/g;
+// eslint-disable-next-line no-control-regex -- intentionally matches control characters for sanitization
 const CONTROL_CHAR_PATTERN = /[\x00-\x1f\x7f]/g;
 
 /**
