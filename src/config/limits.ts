@@ -54,6 +54,10 @@ export const PIPELINE_LIMITS = {
   MAX_FPS: 120,
 } as const;
 
+/** Supported audio file formats for transcription */
+export const SUPPORTED_AUDIO_FORMATS = ['mp3', 'wav', 'ogg', 'm4a'] as const;
+export type SupportedAudioFormat = typeof SUPPORTED_AUDIO_FORMATS[number];
+
 /** Audio file processing limits */
 export const AUDIO_LIMITS = {
   /** Maximum file size in bytes (50 MB) */

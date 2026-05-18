@@ -6,7 +6,7 @@
  * Works with File objects (browser) and requires no DOM for size checks.
  */
 
-import { AUDIO_LIMITS } from '@/config/limits';
+import { AUDIO_LIMITS, SUPPORTED_AUDIO_FORMATS } from '@/config/limits';
 
 /** Minimum duration in seconds below which audio is rejected (EDGE-102) */
 export const MIN_AUDIO_DURATION_SECONDS = 1;
@@ -45,7 +45,8 @@ export function validateAudioFile(file: File): AudioValidationResult {
     'audio/ogg', 'audio/x-ogg', 'audio/mp4', 'audio/x-m4a',
     'audio/webm',
   ];
-  const validExtensions = ['mp3', 'wav', 'ogg', 'm4a', 'webm'];
+  // Base transcription formats from centralized config, plus browser-only 'webm'
+  const validExtensions = [...SUPPORTED_AUDIO_FORMATS, 'webm'];
   const ext = file.name.split('.').pop()?.toLowerCase();
 
   const typeValid = validTypes.some(t => file.type === t) || file.type.startsWith('audio/');
