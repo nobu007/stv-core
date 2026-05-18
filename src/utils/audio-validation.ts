@@ -4,6 +4,7 @@
  * Validates file size (EDGE-101) and minimum duration (EDGE-102)
  * using the centralized AUDIO_LIMITS configuration.
  * Works with File objects (browser) and requires no DOM for size checks.
+ * REQ-148: Server-side audio metadata validation for API boundary.
  */
 
 import { AUDIO_LIMITS, SUPPORTED_AUDIO_FORMATS } from '@/config/limits';
@@ -15,6 +16,14 @@ export interface AudioValidationResult {
   valid: boolean;
   errors: string[];
   warnings: string[];
+}
+
+/** Input for server-side audio validation (no File dependency) */
+export interface AudioFileMetadata {
+  /** Original filename (e.g. "speech.mp3") */
+  name: string;
+  /** File size in bytes; 0 or omitted means "unknown" */
+  size?: number;
 }
 
 /**
@@ -91,6 +100,44 @@ export function validateAudioDuration(durationSeconds: number): AudioValidationR
     warnings.push(
       `Audio duration ${(durationSeconds / 60).toFixed(0)}min exceeds recommended maximum of ${Math.floor(AUDIO_LIMITS.DURATION_WARNING_SECONDS / 60)}min; processing may take longer`,
     );
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+  };
+}
+
+/**
+ * REQ-148: Validate audio file metadata on the server side (no File object needed).
+ *
+ * Checks filename extension against SUPPORTED_AUDIO_FORMATS and optional
+ * file size against AUDIO_LIMITS.MAX_FILE_SIZE_BYTES.
+ * Used at the API boundary to reject invalid audio before pipeline processing.
+ */
+export function validateAudioFileMetadata(meta: AudioFileMetadata): AudioValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // Extension check
+  const lastDot = meta.name.lastIndexOf('.');
+  const ext = lastDot > 0 ? meta.name.slice(lastDot + 1).toLowerCase() : undefined;
+  if (!SUPPORTED_AUDIO_FORMATS.includes(ext as typeof SUPPORTED_AUDIO_FORMATS[number])) {
+    errors.push(
+      `Unsupported audio format: "${meta.name}" (extension: ${ext ?? 'none'}). Supported: ${SUPPORTED_AUDIO_FORMATS.join(', ')}`,
+    );
+  }
+
+  // File size checks (optional — skip when size is unknown)
+  if (meta.size !== undefined) {
+    if (meta.size === 0) {
+      errors.push(`Audio file "${meta.name}" is empty (0 bytes)`);
+    } else if (meta.size > AUDIO_LIMITS.MAX_FILE_SIZE_BYTES) {
+      errors.push(
+        `File "${meta.name}" size ${(meta.size / (1024 * 1024)).toFixed(1)}MB exceeds maximum ${(AUDIO_LIMITS.MAX_FILE_SIZE_BYTES / (1024 * 1024)).toFixed(0)}MB`,
+      );
+    }
   }
 
   return {
