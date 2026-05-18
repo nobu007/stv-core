@@ -54,6 +54,14 @@ export const PIPELINE_LIMITS = {
   MAX_FPS: 120,
 } as const;
 
+/** Audio file processing limits */
+export const AUDIO_LIMITS = {
+  /** Maximum file size in bytes (50 MB) */
+  MAX_FILE_SIZE_BYTES: 50 * 1024 * 1024,
+  /** Duration threshold (seconds) above which a pre-processing warning is shown (EDGE-103) */
+  DURATION_WARNING_SECONDS: 3600,
+} as const;
+
 /** Security-related minimum requirements */
 export const SECURITY_LIMITS = {
   /** Minimum JWT secret length */
