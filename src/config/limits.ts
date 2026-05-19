@@ -38,6 +38,10 @@ export const BATCH_LIMITS = {
 export const SERVER_LIMITS = {
   /** Maximum JSON body size */
   BODY_LIMIT: '50mb',
+  /** Default request timeout in milliseconds */
+  DEFAULT_TIMEOUT_MS: 30_000,
+  /** Timeout for expensive operations (render, batch) in milliseconds */
+  HEAVY_OPERATION_TIMEOUT_MS: 120_000,
 } as const;
 
 /** Pipeline validation limits (previously scattered as magic numbers in pipeline.ts) */
