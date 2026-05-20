@@ -21,8 +21,8 @@ describe('memory-usage utility (ISS-006)', () => {
     const originalProcess = global.process;
     // Simulate browser-like environment where process.memoryUsage doesn't exist
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (globalThis as any).process = undefined;
+      // Simulate browser-like environment where process.memoryUsage doesn't exist
+      (globalThis as Record<string, unknown>).process = undefined;
       const mem = getMemoryUsage();
       // Should still return valid structure (heapUsed may be 0 or from performance.memory)
       expect(mem.heapUsed).toBeGreaterThanOrEqual(0);
