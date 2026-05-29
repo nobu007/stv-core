@@ -7,6 +7,7 @@ import { bundle } from '@remotion/bundler';
 import { renderMedia, selectComposition } from '@remotion/renderer';
 import type { VideoConfig } from 'remotion';
 import { SceneGraph } from '@/types/diagram';
+import { RenderingError } from '@/pipeline/pipeline-errors';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
@@ -167,7 +168,10 @@ export class ActualVideoRenderer {
 
 
     if (!fs.existsSync(entryPoint)) {
-      throw new Error(`Remotion entry point not found: ${entryPoint}\nProject root: ${projectRoot}`);
+      throw new RenderingError(
+        `Remotion entry point not found: ${entryPoint}\nProject root: ${projectRoot}`,
+        { entryPoint, projectRoot },
+      );
     }
 
     onProgress?.({
