@@ -22,6 +22,13 @@ export const RATE_LIMITS = {
     /** Maximum requests per window per IP */
     MAX_REQUESTS: 20,
   },
+  /** Export / render rate limit — protects expensive CPU-bound operations */
+  EXPORT: {
+    /** Window duration in milliseconds */
+    WINDOW_MS: 15 * 60 * 1000, // 15 minutes
+    /** Maximum render requests per window per IP */
+    MAX_REQUESTS: 10,
+  },
 } as const;
 
 /** Batch processing limits */
