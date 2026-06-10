@@ -70,6 +70,18 @@ export const AUDIO_LIMITS = {
   DURATION_WARNING_SECONDS: 3600,
 } as const;
 
+/** Error registry limits (in-memory error recovery store) */
+export const ERROR_REGISTRY_LIMITS = {
+  /** Maximum number of errors stored before oldest are evicted */
+  MAX_STORED_ERRORS: 1000,
+  /** Maximum errorId length in characters */
+  MAX_ERROR_ID_LENGTH: 128,
+  /** Maximum errorMessage length in characters */
+  MAX_ERROR_MESSAGE_LENGTH: 2000,
+  /** Allowed characters in errorId: alphanumeric, hyphens, underscores, dots */
+  ERROR_ID_PATTERN: /^[a-zA-Z0-9._-]+$/,
+} as const;
+
 /** Security-related minimum requirements */
 export const SECURITY_LIMITS = {
   /** Minimum JWT secret length */
