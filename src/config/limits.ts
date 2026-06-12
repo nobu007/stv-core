@@ -89,6 +89,30 @@ export const ERROR_REGISTRY_LIMITS = {
   ERROR_ID_PATTERN: /^[a-zA-Z0-9._-]+$/,
 } as const;
 
+/** Export retry configuration (REQ-227) */
+export const EXPORT_RETRY_LIMITS = {
+  /** Maximum retry attempts for transient encoding errors */
+  MAX_RETRIES: 3,
+  /** Initial delay in ms before the first retry */
+  INITIAL_DELAY_MS: 1000,
+  /** Maximum delay between retries in ms */
+  MAX_DELAY_MS: 30_000,
+  /** Jitter range in ms (0–JITTER_MAX_MS added to each delay) */
+  JITTER_MAX_MS: 500,
+} as const;
+
+/** Export stage timeout configuration in ms (REQ-228) */
+export const EXPORT_STAGE_TIMEOUTS = {
+  /** Preparing stage timeout (scene validation, codec setup) */
+  preparing: 30_000,
+  /** Rendering stage timeout (frame generation) */
+  rendering: 600_000,
+  /** Encoding stage timeout (format-specific encoding) */
+  encoding: 300_000,
+  /** Finalizing stage timeout (verification, file write) */
+  finalizing: 60_000,
+} as const;
+
 /** Security-related minimum requirements */
 export const SECURITY_LIMITS = {
   /** Minimum JWT secret length */
