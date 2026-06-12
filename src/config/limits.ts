@@ -113,6 +113,16 @@ export const EXPORT_STAGE_TIMEOUTS = {
   finalizing: 60_000,
 } as const;
 
+/** Export job queue limits (REQ-229) */
+export const EXPORT_QUEUE_LIMITS = {
+  /** Maximum number of concurrent export jobs processed by the queue */
+  MAX_CONCURRENT: 3,
+  /** Maximum number of jobs that can be waiting in the queue */
+  MAX_QUEUE_SIZE: 100,
+  /** Interval in ms at which the oldest low-priority job is promoted to prevent starvation */
+  STARVATION_PREVENTION_INTERVAL_MS: 30_000,
+} as const;
+
 /** Security-related minimum requirements */
 export const SECURITY_LIMITS = {
   /** Minimum JWT secret length */
