@@ -123,6 +123,20 @@ export const EXPORT_QUEUE_LIMITS = {
   STARVATION_PREVENTION_INTERVAL_MS: 30_000,
 } as const;
 
+/** Export artifact store limits (REQ-230) */
+export const ARTIFACT_STORE_LIMITS = {
+  /** Default artifact TTL in ms (1 hour) */
+  DEFAULT_TTL_MS: 3_600_000,
+  /** Maximum total storage in bytes (1 GB) */
+  MAX_STORAGE_BYTES: 1024 * 1024 * 1024,
+  /** Maximum number of stored artifacts */
+  MAX_ARTIFACTS: 1000,
+  /** Download URL validity in ms (5 minutes) */
+  DOWNLOAD_URL_TTL_MS: 300_000,
+  /** Interval in ms for periodic TTL cleanup */
+  CLEANUP_INTERVAL_MS: 60_000,
+} as const;
+
 /** Security-related minimum requirements */
 export const SECURITY_LIMITS = {
   /** Minimum JWT secret length */
