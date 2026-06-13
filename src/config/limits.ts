@@ -121,6 +121,8 @@ export const EXPORT_QUEUE_LIMITS = {
   MAX_QUEUE_SIZE: 100,
   /** Interval in ms at which the oldest low-priority job is promoted to prevent starvation */
   STARVATION_PREVENTION_INTERVAL_MS: 30_000,
+  /** Maximum number of terminal (completed/failed/cancelled) jobs retained for status lookups */
+  MAX_COMPLETED_JOBS: 500,
 } as const;
 
 /** Export artifact store limits (REQ-230) */
