@@ -123,6 +123,14 @@ export const EXPORT_QUEUE_LIMITS = {
   STARVATION_PREVENTION_INTERVAL_MS: 30_000,
   /** Maximum number of terminal (completed/failed/cancelled) jobs retained for status lookups */
   MAX_COMPLETED_JOBS: 500,
+  /** Maximum retry attempts before a failed job is moved to the dead letter queue */
+  MAX_RETRIES: 3,
+  /** Base delay in ms for exponential backoff between retries */
+  RETRY_BASE_DELAY_MS: 2_000,
+  /** Maximum delay in ms between retries (backoff cap) */
+  RETRY_MAX_DELAY_MS: 30_000,
+  /** Maximum number of jobs retained in the dead letter queue */
+  MAX_DLQ_JOBS: 200,
 } as const;
 
 /** Export artifact store limits (REQ-230) */
