@@ -255,7 +255,9 @@ This log tracks iterative improvements following the custom instructions philoso
       const recentAvg = recent.reduce((sum, e) => sum + e.metrics.totalProcessingTime, 0) / recent.length;
       const previousAvg = previous.reduce((sum, e) => sum + e.metrics.totalProcessingTime, 0) / previous.length;
 
-      const improvement = ((previousAvg - recentAvg) / previousAvg) * 100;
+      const improvement = previousAvg !== 0
+        ? ((previousAvg - recentAvg) / previousAvg) * 100
+        : 0;
 
       if (improvement > 10) trendDirection = 'improving';
       else if (improvement < -10) trendDirection = 'regressing';
