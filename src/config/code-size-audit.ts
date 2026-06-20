@@ -183,10 +183,16 @@ export function collectMetrics(
  */
 export function readDependencyCount(packageJsonPath: string): number {
   const raw = fs.readFileSync(packageJsonPath, 'utf-8');
-  const pkg = JSON.parse(raw) as {
+  let pkg: {
     dependencies?: Record<string, string>;
     devDependencies?: Record<string, string>;
   };
+  try {
+    pkg = JSON.parse(raw);
+  } catch {
+    console.warn(`[code-size-audit] Failed to parse ${packageJsonPath}; returning 0 dependencies.`);
+    return 0;
+  }
   const deps = Object.keys(pkg.dependencies ?? {}).length;
   const devDeps = Object.keys(pkg.devDependencies ?? {}).length;
   return deps + devDeps;
