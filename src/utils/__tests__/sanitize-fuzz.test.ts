@@ -8,6 +8,8 @@
  * - escapeXml (animated-scene-renderer.ts)
  * - sanitizeMessage (api/routes/errors.ts)
  * - sanitizeFilename (utils/sanitize.ts)
+ * - escapePDFString (multi-format-exporter.ts, private — replicated here)
+ * - </script> escape regex (enhanced-export-engine.ts — replicated here)
  *
  * Key principle: after escaping, text content like `onerror=alert(1)` is safe
  * because it appears as character data inside escaped &lt;...&gt; entities,
@@ -401,5 +403,226 @@ describe('Fuzz: escaped payloads are safe in SVG text context', () => {
     // No unescaped tags beyond the wrapper <svg> and <text> tags
     const realTags = svg.match(/<(?!\/?svg[ >]|\/?text[ >])/g);
     expect(realTags).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: escapePDFString (replicated from multi-format-exporter.ts)
+// ---------------------------------------------------------------------------
+// The private method escapePDFString only escapes \, (, and ).
+// PDF text strings are wrapped in parentheses, so unescaped parens can
+// break the PDF content stream structure or inject operators.
+
+function escapePdfStringRef(str: string): string {
+  return str
+    .replace(/\\/g, '\\\\')
+    .replace(/\(/g, '\\(')
+    .replace(/\)/g, '\\)');
+}
+
+const PDF_INJECTION_PAYLOADS: string[] = [];
+const pdfBases = [
+  ') Tj (evil',
+  ') Tj (\\) >>',
+  '(BT) Tj (ET',
+  '\\) Tj \\( evil',
+  'text)more(paren(broken',
+  '\\\\)\\\\(\\\\\\\\',
+  'normal text (balanced) ok',
+  '(unbalanced open',
+  'unbalanced close)',
+  ') >> /Annot /S /URI (http://evil',
+  ') Tj (XSS) Tj (',
+  '\\n\\r\\t\\0',
+  'very)long(payload(with(many(parens',
+  '\\\\\\\\\\\\\\\\',
+  ')Tj(BT/Type/Annot/Subtype/Widget',
+];
+
+for (const base of pdfBases) {
+  PDF_INJECTION_PAYLOADS.push(base);
+  for (let i = 0; i < 10; i++) {
+    PDF_INJECTION_PAYLOADS.push(mutatePayload(base));
+  }
+}
+// Add pure random strings from PDF-dangerous charset
+const PDF_DANGEROUS_CHARS = '\\(){}[]<>/%#.\0\r\n\t ;';
+for (let i = 0; i < 20; i++) {
+  PDF_INJECTION_PAYLOADS.push(randomString(randomInt(50) + 1, PDF_DANGEROUS_CHARS));
+}
+
+describe('Fuzz: escapePDFString neutralizes PDF injection payloads', () => {
+  test.each(PDF_INJECTION_PAYLOADS)('payload #%#: all parens and backslashes escaped', (payload) => {
+    const escaped = escapePdfStringRef(payload);
+
+    // Security invariant: all unescaped ( and ) must be preceded by \
+    for (let i = 0; i < escaped.length; i++) {
+      if (escaped[i] === '(' || escaped[i] === ')') {
+        expect(i).toBeGreaterThan(0);
+        expect(escaped[i - 1]).toBe('\\');
+      }
+    }
+
+    // Security invariant: all backslashes must be doubled (escaped \\
+    // sequences) or used as escape prefixes for ( and )
+    // Walk the string: each \ must be part of \\, \(, or \)
+    for (let i = 0; i < escaped.length; i++) {
+      if (escaped[i] === '\\') {
+        const next = escaped[i + 1];
+        // Valid escaped sequences: \\, \(, \)
+        expect(next === '\\' || next === '(' || next === ')').toBe(true);
+        // Skip the next char since it's part of this escape sequence
+        i++;
+      }
+    }
+
+    // The escaped string must be safe when placed inside PDF text parens:
+    //   (escaped_string) Tj
+    // Wrapping in (...) must not have premature closing paren
+    const pdfText = `(${escaped})`;
+    // Walk the wrapped string respecting PDF escape sequences.
+    // Starting depth 0, the wrapping ( brings depth to 1, the wrapping )
+    // brings it back to 0. No unescaped paren in the content should
+    // cause depth to go negative or leave it unbalanced.
+    let depth = 0;
+    for (let i = 0; i < pdfText.length; i++) {
+      if (pdfText[i] === '\\' && i + 1 < pdfText.length) {
+        i++; // skip escaped char
+        continue;
+      }
+      if (pdfText[i] === '(') depth++;
+      if (pdfText[i] === ')') depth--;
+    }
+    expect(depth).toBe(0); // balanced
+  });
+
+  test('empty string is unchanged', () => {
+    expect(escapePdfStringRef('')).toBe('');
+  });
+
+  test('legitimate text without special chars is unchanged', () => {
+    const text = 'Hello World 123';
+    expect(escapePdfStringRef(text)).toBe(text);
+  });
+
+  test('balanced parentheses in normal text are escaped', () => {
+    const escaped = escapePdfStringRef('Hello (World)');
+    expect(escaped).toBe('Hello \\(World\\)');
+  });
+
+  test('backslashes are doubled', () => {
+    expect(escapePdfStringRef('\\')).toBe('\\\\');
+    expect(escapePdfStringRef('\\\\')).toBe('\\\\\\\\');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: </script> regex escape (from enhanced-export-engine.ts)
+// ---------------------------------------------------------------------------
+// The regex /<\/script>/gi replaces </script> (case-insensitive) with <\/script>
+// to prevent HTML parser from closing the inline <script> tag when JSON
+// data is embedded in HTML. The regex operates on JSON.stringify output.
+
+function escapeScriptClose(json: string): string {
+  return json.replace(/<\/script>/gi, '<\\/script>');
+}
+
+const SCRIPT_CLOSE_PAYLOADS: string[] = [];
+const scriptBases = [
+  '</script>',
+  '</SCRIPT>',
+  '</Script>',
+  '</ScRiPt>',
+  '</sCrIpT>',
+  '</script><script>alert(1)</script>',
+  'foo</script>bar',
+  '</script>',
+  '</script\t>',
+  '</script\n>',
+  '</script >',
+  '</script\x00>',
+  '</script/>',
+  '</script\f>',
+  '</script\r>',
+  '"></script><img src=x>',
+  "';</script>';",
+  '</script></script>',
+  'data:</script>',
+  '\\u003c/script\\u003e',
+  '</script\\x3e',
+  'normal text without closing tags',
+  '<script>not closed',
+  '</style>',
+  '</textarea>',
+];
+
+for (const base of scriptBases) {
+  SCRIPT_CLOSE_PAYLOADS.push(base);
+  for (let i = 0; i < 10; i++) {
+    SCRIPT_CLOSE_PAYLOADS.push(mutatePayload(base));
+  }
+}
+
+describe('Fuzz: </script> regex escape prevents HTML parser breakout', () => {
+  test.each(SCRIPT_CLOSE_PAYLOADS)('payload #%#: no literal </script> survives', (payload) => {
+    // Simulate the enhanced-export-engine.ts escape pipeline:
+    // JSON.stringify(sceneData) then regex replace
+    const jsonStr = JSON.stringify({ data: payload });
+    const escaped = escapeScriptClose(jsonStr);
+
+    // Security invariant: no literal </script> (case-insensitive) in the output
+    // This is what the HTML parser would look for to close the <script> tag
+    expect(escaped).not.toMatch(/<\/script>/i);
+  });
+
+  test('multiple </script> occurrences are all escaped', () => {
+    const payload = 'a</script>b</script>c</script>d';
+    const jsonStr = JSON.stringify({ data: payload });
+    const escaped = escapeScriptClose(jsonStr);
+
+    // Count occurrences of </script> (case-insensitive) in the original JSON
+    const originalCount = (jsonStr.match(/<\/script>/gi) || []).length;
+    expect(originalCount).toBe(3);
+
+    // After escaping, zero should remain
+    const remainingCount = (escaped.match(/<\/script>/gi) || []).length;
+    expect(remainingCount).toBe(0);
+  });
+
+  test('nested JSON with </script> at multiple depths is safe', () => {
+    const nested = {
+      outer: '</script>',
+      inner: { value: '</SCRIPT>' },
+      array: ['</Script>', '</ScRiPt>'],
+    };
+    const jsonStr = JSON.stringify(nested);
+    const escaped = escapeScriptClose(jsonStr);
+
+    expect(escaped).not.toMatch(/<\/script>/i);
+  });
+
+  test('escaped JSON is still valid JSON after parse', () => {
+    const payload = { value: '</script>alert(1)' };
+    const jsonStr = JSON.stringify(payload);
+    const escaped = escapeScriptClose(jsonStr);
+
+    // The replacement <\/script> uses JSON-valid \\/ which JSON.parse
+    // will interpret as </script> — data integrity is preserved
+    const parsed = JSON.parse(escaped);
+    expect(parsed.value).toBe('</script>alert(1)');
+  });
+
+  test('whitespace-variant closing tags are handled by JSON escaping', () => {
+    // JSON.stringify escapes \t, \n, \r, \f to \\t, \\n, etc.
+    // So </script\t> in source data becomes </script\\t> in JSON
+    // which does NOT match the HTML parser's closing tag pattern
+    const variants = ['</script\t>', '</script\n>', '</script\r>', '</script\f>'];
+    for (const v of variants) {
+      const jsonStr = JSON.stringify({ data: v });
+      const escaped = escapeScriptClose(jsonStr);
+      // The HTML parser should not see a real closing tag
+      // because the whitespace is escaped by JSON.stringify
+      expect(escaped).not.toMatch(/<\/script[>\s]/i);
+    }
   });
 });
