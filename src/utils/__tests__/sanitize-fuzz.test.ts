@@ -23,6 +23,25 @@ import { sanitizeFilename } from '../sanitize';
 // ---------------------------------------------------------------------------
 // Deterministic PRNG (mulberry32) for reproducible fuzz runs
 // ---------------------------------------------------------------------------
+
+/**
+ * Seed resolution: default 0xC0FFEE for reproducibility; CI can override via
+ * FUZZ_SEED env var to explore different payload spaces across runs.
+ *
+ * Usage in CI:
+ *   FUZZ_SEED=$(date +%s) npx jest sanitize-fuzz
+ *   FUZZ_SEED=random npx jest sanitize-fuzz
+ */
+function resolveFuzzSeed(): number {
+  const envSeed = process.env.FUZZ_SEED;
+  if (envSeed === undefined) return 0xC0FFEE;
+  if (envSeed === 'random') return (Math.random() * 0xFFFFFFFF) >>> 0;
+  const parsed = parseInt(envSeed, 10);
+  return Number.isNaN(parsed) ? 0xC0FFEE : parsed >>> 0;
+}
+
+const FUZZ_SEED = resolveFuzzSeed();
+
 function mulberry32(seed: number): () => number {
   return function () {
     seed |= 0;
@@ -33,7 +52,7 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-const rng = mulberry32(0xC0FFEE);
+const rng = mulberry32(FUZZ_SEED);
 
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(rng() * arr.length)];
@@ -623,6 +642,38 @@ describe('Fuzz: </script> regex escape prevents HTML parser breakout', () => {
       // The HTML parser should not see a real closing tag
       // because the whitespace is escaped by JSON.stringify
       expect(escaped).not.toMatch(/<\/script[>\s]/i);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: seed configurability
+// ---------------------------------------------------------------------------
+
+describe('Fuzz seed configuration', () => {
+  test('default seed is 0xC0FFEE when FUZZ_SEED env var is not set', () => {
+    // When FUZZ_SEED env var is not set, resolveFuzzSeed returns the default.
+    const orig = process.env.FUZZ_SEED;
+    delete process.env.FUZZ_SEED;
+    expect(resolveFuzzSeed()).toBe(0xC0FFEE);
+    if (orig !== undefined) process.env.FUZZ_SEED = orig;
+  });
+
+  test('FUZZ_SEED env var overrides default seed', () => {
+    // Verify the resolveFuzzSeed function correctly parses env var
+    const orig = process.env.FUZZ_SEED;
+    process.env.FUZZ_SEED = '12345';
+    expect(resolveFuzzSeed()).toBe(12345);
+    process.env.FUZZ_SEED = 'random';
+    const randomSeed = resolveFuzzSeed();
+    expect(randomSeed).toBeGreaterThanOrEqual(0);
+    expect(randomSeed).toBeLessThanOrEqual(0xFFFFFFFF);
+    process.env.FUZZ_SEED = 'not-a-number';
+    expect(resolveFuzzSeed()).toBe(0xC0FFEE);
+    if (orig === undefined) {
+      delete process.env.FUZZ_SEED;
+    } else {
+      process.env.FUZZ_SEED = orig;
     }
   });
 });
