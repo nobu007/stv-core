@@ -102,11 +102,24 @@ describe('sanitizeFilename', () => {
       expect(sanitizeFilename('file@name.txt')).toBe('file@name.txt');
     });
 
-    it('handles very long filenames', () => {
+    it('truncates very long filenames to 255 characters (filesystem limit)', () => {
       const longName = 'a'.repeat(300) + '.txt';
       const result = sanitizeFilename(longName);
-      expect(result).toBe(longName);
-      expect(result.length).toBe(304);
+      expect(result.length).toBe(255);
+      expect(result).toBe('a'.repeat(255));
+    });
+
+    it('preserves filenames under 255 characters', () => {
+      const name = 'b'.repeat(250) + '.txt';
+      const result = sanitizeFilename(name);
+      expect(result.length).toBe(254);
+      expect(result).toBe(name);
+    });
+
+    it('truncates exactly at 255 characters', () => {
+      const name = 'x'.repeat(300);
+      const result = sanitizeFilename(name);
+      expect(result.length).toBe(255);
     });
   });
 
@@ -126,6 +139,46 @@ describe('sanitizeFilename', () => {
     it('handles null byte + hidden file combination', () => {
       // .\0./file -> remove null -> ../file -> / to _ -> .._file -> remove .. -> _file
       expect(sanitizeFilename('.\0./file')).toBe('_file');
+    });
+  });
+
+  describe('Unicode directional override removal', () => {
+    it('removes RTL override character (U+202E)', () => {
+      const malicious = 'file\u202etxt';
+      expect(sanitizeFilename(malicious)).toBe('filetxt');
+    });
+
+    it('removes LTR override character (U+202D)', () => {
+      const malicious = 'file\u202dtxt';
+      expect(sanitizeFilename(malicious)).toBe('filetxt');
+    });
+
+    it('removes directional isolate characters', () => {
+      expect(sanitizeFilename('a\u202cb')).toBe('ab');
+      expect(sanitizeFilename('a\u202db')).toBe('ab');
+    });
+
+    it('removes RLM and LRM marks (U+200E, U+200F)', () => {
+      expect(sanitizeFilename('safe\u200e.exe')).toBe('safe.exe');
+      expect(sanitizeFilename('safe\u200f.exe')).toBe('safe.exe');
+    });
+
+    it('removes BOM / zero-width no-break space (U+FEFF)', () => {
+      expect(sanitizeFilename('\ufefffile.txt')).toBe('file.txt');
+    });
+
+    it('removes multiple override characters', () => {
+      const malicious = '\u202e\u202d\u200f\u200e\ufefffile';
+      expect(sanitizeFilename(malicious)).toBe('file');
+    });
+
+    it('prevents filename spoofing attack (evil.exe disguised as file.txt)', () => {
+      // U+202E reverses display: "txt\u202Efile.exe" displays as "txt‮file.exe"
+      // but actually opens as an executable
+      const spoofed = 'txt\u202efile.exe';
+      const result = sanitizeFilename(spoofed);
+      expect(result).not.toContain('\u202e');
+      expect(result).toBe('txtfile.exe');
     });
   });
 });
