@@ -90,29 +90,36 @@ export class VideoRenderer {
     for (const step of steps) {
       const startTime = Date.now();
       const interval = setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        const stepProgress = Math.min(elapsed / step.duration, 1);
+        try {
+          const elapsed = Date.now() - startTime;
+          const stepProgress = Math.min(elapsed / step.duration, 1);
 
-        if (step.stage === 'rendering') {
-          currentFrame = Math.floor(stepProgress * totalFrames);
-        }
+          if (step.stage === 'rendering') {
+            currentFrame = Math.floor(stepProgress * totalFrames);
+          }
 
-        const overallProgress = steps.slice(0, steps.indexOf(step)).reduce((acc, s) => acc + 33, 0) +
-                              stepProgress * 33;
+          const overallProgress = steps.slice(0, steps.indexOf(step)).reduce((acc, s) => acc + 33, 0) +
+                                stepProgress * 33;
 
-        if (onProgress) {
-          onProgress({
-            progress: Math.min(overallProgress, 99),
-            currentFrame,
-            totalFrames,
-            message: step.message,
-            stage: step.stage
-          });
+          if (onProgress) {
+            onProgress({
+              progress: Math.min(overallProgress, 99),
+              currentFrame,
+              totalFrames,
+              message: step.message,
+              stage: step.stage
+            });
+          }
+        } catch {
+          // Swallow errors from progress callback to prevent interval crash
         }
       }, 100);
 
-      await new Promise(resolve => setTimeout(resolve, step.duration));
-      clearInterval(interval);
+      try {
+        await new Promise(resolve => setTimeout(resolve, step.duration));
+      } finally {
+        clearInterval(interval);
+      }
     }
 
     // Final completion
