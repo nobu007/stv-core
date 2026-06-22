@@ -66,7 +66,7 @@ export interface QualityPreset {
   targetUse: string;
 }
 
-class ProductionConfigManager {
+export class ProductionConfigManager {
   private currentEnv: ProductionEnvironment;
   private configOverrides: Partial<ProductionEnvironment> = {};
 
