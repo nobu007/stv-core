@@ -63,6 +63,8 @@ export const PIPELINE_LIMITS = {
   MAX_COMMIT_MESSAGE_LENGTH: 1000,
   /** Maximum allowed FPS value */
   MAX_FPS: 120,
+  /** Maximum resolution dimension (width or height in pixels) — prevents resource exhaustion */
+  MAX_RESOLUTION_DIMENSION: 8640, // 8K
 } as const;
 
 /** Supported audio file formats for transcription */
