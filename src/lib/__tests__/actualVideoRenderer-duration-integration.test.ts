@@ -182,6 +182,31 @@ describe('ActualVideoRenderer duration integration: known scene timings', () => 
     expect(frames).toBe(300);
   });
 
+  test('TC-257-01: 3-scene cumulative duration (intro 2s + content 5s + outro 1s = 8s)', async () => {
+    const scenes = [
+      makeRealisticScene('intro', 2000, 0, 'Introduction'),
+      makeRealisticScene('content', 5000, 2000, 'Main content'),
+      makeRealisticScene('outro', 1000, 7000, 'Conclusion'),
+    ];
+
+    const frames = await getDurationInFrames(renderer, scenes);
+    // 2s + 5s + 1s = 8s = 8000ms → ceil(8 * 30) = 240 frames
+    expect(frames).toBe(240);
+
+    // Verify scene boundaries are correct
+    expect(scenes[0].startMs).toBe(0);
+    expect(scenes[0].durationMs).toBe(2000);
+    expect(scenes[1].startMs).toBe(2000);
+    expect(scenes[1].durationMs).toBe(5000);
+    expect(scenes[2].startMs).toBe(7000);
+    expect(scenes[2].durationMs).toBe(1000);
+
+    // Total = sum of all scene durations
+    const totalMs = scenes.reduce((sum, s) => sum + s.durationMs, 0);
+    expect(totalMs).toBe(8000);
+    expect(frames).toBe(Math.ceil((totalMs / 1000) * FPS));
+  });
+
   test('known timing table: durations vs expected frames', async () => {
     // Table-driven test with known values
     const cases = [
