@@ -208,13 +208,10 @@ export class ActualVideoRenderer {
     scenes: SceneGraph[]
   ) {
 
-    // シーンから合計時間を計算
-    const totalDurationMs = scenes.reduce((acc, scene) => {
-      const startTime = scene.startTime || 0;
-      const endTime = scene.endTime || 10; // デフォルト10秒
-      const sceneDuration = (endTime - startTime) * 1000;
-      return Math.max(acc, startTime * 1000 + sceneDuration);
-    }, 0);
+    // シーンから合計時間を計算 — prefer durationMs (always present) over optional startTime/endTime
+    const totalDurationMs = scenes.length > 0
+      ? scenes.reduce((acc, scene) => acc + (scene.durationMs || 10000), 0)
+      : 10000;
 
     const fps = 30;
     // 最小1秒保証
