@@ -13,6 +13,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { logger } from '../utils/logger';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -190,7 +191,7 @@ export function readDependencyCount(packageJsonPath: string): number {
   try {
     pkg = JSON.parse(raw);
   } catch {
-    console.warn(`[code-size-audit] Failed to parse ${packageJsonPath}; returning 0 dependencies.`);
+    logger.warn(`Failed to parse ${packageJsonPath}; returning 0 dependencies.`);
     return 0;
   }
   const deps = Object.keys(pkg.dependencies ?? {}).length;
