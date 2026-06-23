@@ -11,6 +11,7 @@ import { RenderingError } from '@/pipeline/pipeline-errors';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
+import { logger } from '@/utils/logger';
 
 export interface ActualVideoRenderOptions {
   scenes: SceneGraph[];
@@ -89,7 +90,7 @@ export class ActualVideoRenderer {
           fs.mkdirSync(outDir, { recursive: true });
         }
       } catch (e) {
-        console.warn('⚠️  Could not ensure output directory:', e);
+        logger.warn('Could not ensure output directory: ' + (e instanceof Error ? e.message : String(e)));
       }
       const videoPath = await this.renderComposition(
         bundleLocation,
@@ -111,7 +112,7 @@ export class ActualVideoRenderer {
       return videoPath;
 
     } catch (error) {
-      console.error('❌ Video render failed:', error);
+      logger.error('Video render failed: ' + (error instanceof Error ? error.message : String(error)));
 
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       onProgress?.({
