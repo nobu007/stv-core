@@ -4,6 +4,7 @@
  */
 
 import { ProductionConfigManager } from '../production-config';
+import { logger } from '@/utils/logger';
 
 // Mock logger
 jest.mock('@/utils/logger', () => ({
@@ -350,22 +351,15 @@ describe('ProductionConfigManager', () => {
   });
 
   describe('localStorage type guard telemetry', () => {
-    let warnSpy: jest.SpyInstance;
-
     beforeEach(() => {
       jest.clearAllMocks();
       for (const k of Object.keys(mockStorage)) delete mockStorage[k];
-      warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    });
-
-    afterEach(() => {
-      warnSpy.mockRestore();
     });
 
     it('should warn when overrides contains an array instead of object', () => {
       mockStorage['production-config-overrides'] = JSON.stringify([1, 2, 3]);
       new ProductionConfigManager();
-      expect(warnSpy).toHaveBeenCalledWith(
+      expect(logger.warn).toHaveBeenCalledWith(
         expect.stringContaining('non-object'),
       );
       expect(localStorageMock.removeItem).toHaveBeenCalledWith('production-config-overrides');
@@ -374,7 +368,7 @@ describe('ProductionConfigManager', () => {
     it('should warn when overrides contains a string', () => {
       mockStorage['production-config-overrides'] = JSON.stringify('not-config');
       new ProductionConfigManager();
-      expect(warnSpy).toHaveBeenCalledWith(
+      expect(logger.warn).toHaveBeenCalledWith(
         expect.stringContaining('non-object'),
       );
     });
@@ -382,7 +376,7 @@ describe('ProductionConfigManager', () => {
     it('should warn when overrides contains a number', () => {
       mockStorage['production-config-overrides'] = JSON.stringify(42);
       new ProductionConfigManager();
-      expect(warnSpy).toHaveBeenCalledWith(
+      expect(logger.warn).toHaveBeenCalledWith(
         expect.stringContaining('non-object'),
       );
     });
@@ -390,7 +384,7 @@ describe('ProductionConfigManager', () => {
     it('should warn when overrides contains null', () => {
       mockStorage['production-config-overrides'] = JSON.stringify(null);
       new ProductionConfigManager();
-      expect(warnSpy).toHaveBeenCalledWith(
+      expect(logger.warn).toHaveBeenCalledWith(
         expect.stringContaining('non-object'),
       );
       expect(localStorageMock.removeItem).toHaveBeenCalledWith('production-config-overrides');
@@ -399,7 +393,7 @@ describe('ProductionConfigManager', () => {
     it('should accept a valid object and NOT warn about non-object', () => {
       mockStorage['production-config-overrides'] = JSON.stringify({ apiBaseUrl: 'http://test/api' });
       const mgr = new ProductionConfigManager();
-      const nonObjectWarnings = warnSpy.mock.calls.filter(
+      const nonObjectWarnings = (logger.warn as jest.Mock).mock.calls.filter(
         (args: unknown[]) => typeof args[0] === 'string' && args[0].includes('non-object'),
       );
       expect(nonObjectWarnings).toHaveLength(0);
@@ -407,13 +401,149 @@ describe('ProductionConfigManager', () => {
     });
 
     it('should handle ALL-corrupted localStorage gracefully', () => {
-      // Set multiple corrupted entries
       mockStorage['production-config-overrides'] = JSON.stringify([1, 2]);
-      // Constructor should not throw
       const mgr = new ProductionConfigManager();
-      // Config should have default values
       expect(mgr.getConfig()).toBeDefined();
       expect(mgr.getConfig().performance).toBeDefined();
+    });
+  });
+
+  describe('malformed config field-level rejection', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      for (const k of Object.keys(mockStorage)) delete mockStorage[k];
+    });
+
+    it('should reject config with apiBaseUrl as number', () => {
+      mockStorage['production-config-overrides'] = JSON.stringify({ apiBaseUrl: 123 });
+      const mgr = new ProductionConfigManager();
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('malformed config'),
+      );
+      expect(localStorageMock.removeItem).toHaveBeenCalledWith('production-config-overrides');
+      expect(mgr.getConfig().apiBaseUrl).toContain('localhost');
+    });
+
+    it('should reject config with apiBaseUrl as boolean', () => {
+      mockStorage['production-config-overrides'] = JSON.stringify({ apiBaseUrl: true });
+      new ProductionConfigManager();
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('malformed config'),
+      );
+    });
+
+    it('should reject config with performance.maxConcurrentJobs as string', () => {
+      mockStorage['production-config-overrides'] = JSON.stringify({
+        performance: { maxConcurrentJobs: 'not-a-number' },
+      });
+      new ProductionConfigManager();
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('malformed config'),
+      );
+      expect(localStorageMock.removeItem).toHaveBeenCalledWith('production-config-overrides');
+    });
+
+    it('should reject config with features as string', () => {
+      mockStorage['production-config-overrides'] = JSON.stringify({ features: 'invalid' });
+      new ProductionConfigManager();
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('malformed config'),
+      );
+    });
+
+    it('should reject config with features as null', () => {
+      mockStorage['production-config-overrides'] = JSON.stringify({ features: null });
+      new ProductionConfigManager();
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('malformed config'),
+      );
+    });
+
+    it('should reject config with performance as array', () => {
+      mockStorage['production-config-overrides'] = JSON.stringify({ performance: [1, 2] });
+      new ProductionConfigManager();
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('malformed config'),
+      );
+    });
+
+    it('should reject config with monitoring as number', () => {
+      mockStorage['production-config-overrides'] = JSON.stringify({ monitoring: 42 });
+      new ProductionConfigManager();
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('malformed config'),
+      );
+    });
+
+    it('should reject config with export as string', () => {
+      mockStorage['production-config-overrides'] = JSON.stringify({ export: 'bad' });
+      new ProductionConfigManager();
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('malformed config'),
+      );
+    });
+
+    it('should accept config with only apiBaseUrl as valid string', () => {
+      mockStorage['production-config-overrides'] = JSON.stringify({ apiBaseUrl: 'http://valid/api' });
+      const mgr = new ProductionConfigManager();
+      const malformedWarnings = (logger.warn as jest.Mock).mock.calls.filter(
+        (args: unknown[]) => typeof args[0] === 'string' && args[0].includes('malformed'),
+      );
+      expect(malformedWarnings).toHaveLength(0);
+      expect(mgr.getConfig().apiBaseUrl).toBe('http://valid/api');
+    });
+
+    it('should accept config with valid nested performance object', () => {
+      mockStorage['production-config-overrides'] = JSON.stringify({
+        performance: { maxConcurrentJobs: 5, timeoutMs: 30000 },
+      });
+      const mgr = new ProductionConfigManager();
+      const malformedWarnings = (logger.warn as jest.Mock).mock.calls.filter(
+        (args: unknown[]) => typeof args[0] === 'string' && args[0].includes('malformed'),
+      );
+      expect(malformedWarnings).toHaveLength(0);
+      expect(mgr.getConfig().performance.maxConcurrentJobs).toBe(5);
+    });
+
+    it('should reject config with maxFileSize as string', () => {
+      mockStorage['production-config-overrides'] = JSON.stringify({
+        performance: { maxFileSize: 'large' },
+      });
+      new ProductionConfigManager();
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('malformed config'),
+      );
+    });
+
+    it('should reject config with timeoutMs as boolean', () => {
+      mockStorage['production-config-overrides'] = JSON.stringify({
+        performance: { timeoutMs: true },
+      });
+      new ProductionConfigManager();
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('malformed config'),
+      );
+    });
+
+    it('should reject config with name as number', () => {
+      mockStorage['production-config-overrides'] = JSON.stringify({ name: 123 });
+      new ProductionConfigManager();
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('malformed config'),
+      );
+    });
+
+    it('should handle multiple malformed fields and still reset', () => {
+      mockStorage['production-config-overrides'] = JSON.stringify({
+        apiBaseUrl: 42,
+        features: null,
+        performance: 'bad',
+      });
+      new ProductionConfigManager();
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('malformed config'),
+      );
+      expect(localStorageMock.removeItem).toHaveBeenCalledWith('production-config-overrides');
     });
   });
 });

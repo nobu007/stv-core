@@ -292,6 +292,47 @@ export class ProductionConfigManager {
   }
 
   /**
+   * Validate that a parsed overrides object has correct field types.
+   * Returns true if the shape is safe to use as Partial<ProductionEnvironment>.
+   */
+  private static validateConfigOverrides(parsed: Record<string, unknown>): boolean {
+    // Check apiBaseUrl type if present
+    if ('apiBaseUrl' in parsed && typeof parsed.apiBaseUrl !== 'string') return false;
+
+    // Check name type if present
+    if ('name' in parsed && typeof parsed.name !== 'string') return false;
+
+    // Check features shape if present
+    if ('features' in parsed) {
+      const f = parsed.features;
+      if (f === null || typeof f !== 'object' || Array.isArray(f)) return false;
+    }
+
+    // Check performance shape if present
+    if ('performance' in parsed) {
+      const p = parsed.performance;
+      if (p === null || typeof p !== 'object' || Array.isArray(p)) return false;
+      if ('maxConcurrentJobs' in p && typeof (p as Record<string, unknown>).maxConcurrentJobs !== 'number') return false;
+      if ('timeoutMs' in p && typeof (p as Record<string, unknown>).timeoutMs !== 'number') return false;
+      if ('maxFileSize' in p && typeof (p as Record<string, unknown>).maxFileSize !== 'number') return false;
+    }
+
+    // Check monitoring shape if present
+    if ('monitoring' in parsed) {
+      const m = parsed.monitoring;
+      if (m === null || typeof m !== 'object' || Array.isArray(m)) return false;
+    }
+
+    // Check export shape if present
+    if ('export' in parsed) {
+      const e = parsed.export;
+      if (e === null || typeof e !== 'object' || Array.isArray(e)) return false;
+    }
+
+    return true;
+  }
+
+  /**
    * Load configuration overrides from localStorage or environment
    */
   private loadConfigOverrides(): void {
@@ -300,7 +341,12 @@ export class ProductionConfigManager {
       if (storedOverrides) {
         const parsed = JSON.parse(storedOverrides);
         if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          this.configOverrides = parsed;
+          if (ProductionConfigManager.validateConfigOverrides(parsed as Record<string, unknown>)) {
+            this.configOverrides = parsed;
+          } else {
+            logger.warn('[ProductionConfig] localStorage "production-config-overrides" contained malformed config (field type mismatch); resetting');
+            try { localStorage.removeItem('production-config-overrides'); } catch { /* noop */ }
+          }
         } else {
           logger.warn('[ProductionConfig] localStorage "production-config-overrides" contained non-object value; resetting');
           try { localStorage.removeItem('production-config-overrides'); } catch { /* noop */ }
