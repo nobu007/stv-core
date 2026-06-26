@@ -546,4 +546,118 @@ describe('ProductionConfigManager', () => {
       expect(localStorageMock.removeItem).toHaveBeenCalledWith('production-config-overrides');
     });
   });
+
+  // ── Direct validateConfigOverrides boolean-return tests ──
+  // The feedback asks for tests that assert the guard *returns false* for
+  // malformed configs, not just that a valid config passes.
+  describe('validateConfigOverrides direct boolean assertion', () => {
+    it('returns true for empty object', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({})).toBe(true);
+    });
+
+    it('returns true for valid apiBaseUrl string', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({ apiBaseUrl: 'http://test/api' })).toBe(true);
+    });
+
+    it('returns false for apiBaseUrl as number', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({ apiBaseUrl: 42 })).toBe(false);
+    });
+
+    it('returns false for apiBaseUrl as boolean', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({ apiBaseUrl: true })).toBe(false);
+    });
+
+    it('returns false for name as number', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({ name: 123 })).toBe(false);
+    });
+
+    it('returns false for features as string', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({ features: 'bad' })).toBe(false);
+    });
+
+    it('returns false for features as null', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({ features: null })).toBe(false);
+    });
+
+    it('returns false for features as array', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({ features: [1, 2] })).toBe(false);
+    });
+
+    it('returns true for features as plain object', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({ features: { flag: true } })).toBe(true);
+    });
+
+    it('returns false for performance as string', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({ performance: 'fast' })).toBe(false);
+    });
+
+    it('returns false for performance as null', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({ performance: null })).toBe(false);
+    });
+
+    it('returns false for performance as array', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({ performance: [] })).toBe(false);
+    });
+
+    it('returns false for performance.maxConcurrentJobs as string', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({
+        performance: { maxConcurrentJobs: 'five' },
+      })).toBe(false);
+    });
+
+    it('returns false for performance.timeoutMs as boolean', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({
+        performance: { timeoutMs: false },
+      })).toBe(false);
+    });
+
+    it('returns false for performance.maxFileSize as string', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({
+        performance: { maxFileSize: 'large' },
+      })).toBe(false);
+    });
+
+    it('returns true for valid performance object', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({
+        performance: { maxConcurrentJobs: 4, timeoutMs: 30000, maxFileSize: 100 },
+      })).toBe(true);
+    });
+
+    it('returns false for monitoring as number', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({ monitoring: 42 })).toBe(false);
+    });
+
+    it('returns false for monitoring as null', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({ monitoring: null })).toBe(false);
+    });
+
+    it('returns false for export as string', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({ export: 'bad' })).toBe(false);
+    });
+
+    it('returns false for export as null', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({ export: null })).toBe(false);
+    });
+
+    it('returns false when multiple fields are malformed', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({
+        apiBaseUrl: 42,
+        features: null,
+        performance: 'bad',
+        monitoring: 42,
+        export: 'bad',
+      })).toBe(false);
+    });
+
+    it('returns true for fully valid config with all fields', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({
+        apiBaseUrl: 'http://api.example.com',
+        name: 'production',
+        features: { enableX: true },
+        performance: { maxConcurrentJobs: 8, timeoutMs: 60000, maxFileSize: 500 },
+        monitoring: { enabled: true },
+        export: { format: 'mp4' },
+      })).toBe(true);
+    });
+  });
 });

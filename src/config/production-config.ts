@@ -5,6 +5,7 @@
  */
 
 import { logger } from '@/utils/logger';
+import { reportCorruption } from '@/utils/report-corruption';
 
 export interface ProductionEnvironment {
   name: 'development' | 'staging' | 'production';
@@ -294,8 +295,10 @@ export class ProductionConfigManager {
   /**
    * Validate that a parsed overrides object has correct field types.
    * Returns true if the shape is safe to use as Partial<ProductionEnvironment>.
+   *
+   * Public so that tests can directly assert rejection of malformed configs.
    */
-  private static validateConfigOverrides(parsed: Record<string, unknown>): boolean {
+  static validateConfigOverrides(parsed: Record<string, unknown>): boolean {
     // Check apiBaseUrl type if present
     if ('apiBaseUrl' in parsed && typeof parsed.apiBaseUrl !== 'string') return false;
 
@@ -344,11 +347,11 @@ export class ProductionConfigManager {
           if (ProductionConfigManager.validateConfigOverrides(parsed as Record<string, unknown>)) {
             this.configOverrides = parsed;
           } else {
-            logger.warn('[ProductionConfig] localStorage "production-config-overrides" contained malformed config (field type mismatch); resetting');
+            reportCorruption('ProductionConfig', 'localStorage "production-config-overrides" contained malformed config (field type mismatch); resetting');
             try { localStorage.removeItem('production-config-overrides'); } catch { /* noop */ }
           }
         } else {
-          logger.warn('[ProductionConfig] localStorage "production-config-overrides" contained non-object value; resetting');
+          reportCorruption('ProductionConfig', 'localStorage "production-config-overrides" contained non-object value; resetting');
           try { localStorage.removeItem('production-config-overrides'); } catch { /* noop */ }
         }
       }
