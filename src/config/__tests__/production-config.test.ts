@@ -348,4 +348,72 @@ describe('ProductionConfigManager', () => {
       delete process.env.REACT_APP_API_BASE_URL;
     });
   });
+
+  describe('localStorage type guard telemetry', () => {
+    let warnSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      for (const k of Object.keys(mockStorage)) delete mockStorage[k];
+      warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      warnSpy.mockRestore();
+    });
+
+    it('should warn when overrides contains an array instead of object', () => {
+      mockStorage['production-config-overrides'] = JSON.stringify([1, 2, 3]);
+      new ProductionConfigManager();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('non-object'),
+      );
+      expect(localStorageMock.removeItem).toHaveBeenCalledWith('production-config-overrides');
+    });
+
+    it('should warn when overrides contains a string', () => {
+      mockStorage['production-config-overrides'] = JSON.stringify('not-config');
+      new ProductionConfigManager();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('non-object'),
+      );
+    });
+
+    it('should warn when overrides contains a number', () => {
+      mockStorage['production-config-overrides'] = JSON.stringify(42);
+      new ProductionConfigManager();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('non-object'),
+      );
+    });
+
+    it('should warn when overrides contains null', () => {
+      mockStorage['production-config-overrides'] = JSON.stringify(null);
+      new ProductionConfigManager();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('non-object'),
+      );
+      expect(localStorageMock.removeItem).toHaveBeenCalledWith('production-config-overrides');
+    });
+
+    it('should accept a valid object and NOT warn about non-object', () => {
+      mockStorage['production-config-overrides'] = JSON.stringify({ apiBaseUrl: 'http://test/api' });
+      const mgr = new ProductionConfigManager();
+      const nonObjectWarnings = warnSpy.mock.calls.filter(
+        (args: unknown[]) => typeof args[0] === 'string' && args[0].includes('non-object'),
+      );
+      expect(nonObjectWarnings).toHaveLength(0);
+      expect(mgr.getConfig().apiBaseUrl).toBe('http://test/api');
+    });
+
+    it('should handle ALL-corrupted localStorage gracefully', () => {
+      // Set multiple corrupted entries
+      mockStorage['production-config-overrides'] = JSON.stringify([1, 2]);
+      // Constructor should not throw
+      const mgr = new ProductionConfigManager();
+      // Config should have default values
+      expect(mgr.getConfig()).toBeDefined();
+      expect(mgr.getConfig().performance).toBeDefined();
+    });
+  });
 });

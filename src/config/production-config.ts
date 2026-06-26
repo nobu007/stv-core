@@ -298,7 +298,13 @@ export class ProductionConfigManager {
     try {
       const storedOverrides = localStorage.getItem('production-config-overrides');
       if (storedOverrides) {
-        this.configOverrides = JSON.parse(storedOverrides);
+        const parsed = JSON.parse(storedOverrides);
+        if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          this.configOverrides = parsed;
+        } else {
+          logger.warn('[ProductionConfig] localStorage "production-config-overrides" contained non-object value; resetting');
+          try { localStorage.removeItem('production-config-overrides'); } catch { /* noop */ }
+        }
       }
 
       // Environment variable overrides (ISS-012: browser-safe access)
