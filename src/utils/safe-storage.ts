@@ -1,0 +1,60 @@
+/**
+ * Safe localStorage deserialization with built-in corruption observability.
+ *
+ * Wraps the common pattern:
+ *   1. localStorage.getItem(key)
+ *   2. JSON.parse(value)
+ *   3. Type-guard validation
+ *   4. On any failure: reportCorruption + removeItem + return default
+ *
+ * Future callers should use this instead of hand-rolling try/catch +
+ * console.warn at each location.
+ */
+
+import { reportCorruption } from './report-corruption';
+
+/**
+ * Load and validate a JSON-serialisable value from localStorage.
+ *
+ * @param key         localStorage key
+ * @param validate    Type-guard function; return `true` if the parsed value is safe
+ * @param source      Logical source identifier for corruption reports
+ * @param defaultValue Value returned on any failure (default: `null`)
+ * @returns           The validated value, or `defaultValue` on failure
+ */
+export function safeLoadFromStorage<T>(
+  key: string,
+  validate: (parsed: unknown) => parsed is T,
+  source: string,
+  defaultValue: T,
+): T {
+  let raw: string | null;
+  try {
+    raw = localStorage.getItem(key);
+  } catch {
+    // localStorage itself may throw (private mode, quota, etc.)
+    return defaultValue;
+  }
+
+  if (raw === null) return defaultValue;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    reportCorruption(source, `localStorage "${key}" contained unparseable JSON; removing`);
+    try { localStorage.removeItem(key); } catch { /* noop */ }
+    return defaultValue;
+  }
+
+  if (validate(parsed)) {
+    return parsed;
+  }
+
+  reportCorruption(
+    source,
+    `localStorage "${key}" contained valid JSON but failed type validation; removing`,
+  );
+  try { localStorage.removeItem(key); } catch { /* noop */ }
+  return defaultValue;
+}
