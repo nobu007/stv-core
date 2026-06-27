@@ -351,9 +351,16 @@ describe('ProductionConfigManager', () => {
   });
 
   describe('localStorage type guard telemetry', () => {
+    let warnSpy: jest.SpyInstance;
+
     beforeEach(() => {
       jest.clearAllMocks();
       for (const k of Object.keys(mockStorage)) delete mockStorage[k];
+      warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      warnSpy.mockRestore();
     });
 
     it('should warn when overrides contains an array instead of object', () => {
@@ -409,9 +416,16 @@ describe('ProductionConfigManager', () => {
   });
 
   describe('malformed config field-level rejection', () => {
+    let warnSpy: jest.SpyInstance;
+
     beforeEach(() => {
       jest.clearAllMocks();
       for (const k of Object.keys(mockStorage)) delete mockStorage[k];
+      warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      warnSpy.mockRestore();
     });
 
     it('should reject config with apiBaseUrl as number', () => {
