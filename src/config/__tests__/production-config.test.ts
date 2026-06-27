@@ -367,7 +367,7 @@ describe('ProductionConfigManager', () => {
       mockStorage['production-config-overrides'] = JSON.stringify([1, 2, 3]);
       new ProductionConfigManager();
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('non-object'),
+        expect.stringContaining('failed type validation'),
       );
       expect(localStorageMock.removeItem).toHaveBeenCalledWith('production-config-overrides');
     });
@@ -376,7 +376,7 @@ describe('ProductionConfigManager', () => {
       mockStorage['production-config-overrides'] = JSON.stringify('not-config');
       new ProductionConfigManager();
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('non-object'),
+        expect.stringContaining('failed type validation'),
       );
     });
 
@@ -384,7 +384,7 @@ describe('ProductionConfigManager', () => {
       mockStorage['production-config-overrides'] = JSON.stringify(42);
       new ProductionConfigManager();
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('non-object'),
+        expect.stringContaining('failed type validation'),
       );
     });
 
@@ -392,7 +392,7 @@ describe('ProductionConfigManager', () => {
       mockStorage['production-config-overrides'] = JSON.stringify(null);
       new ProductionConfigManager();
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('non-object'),
+        expect.stringContaining('failed type validation'),
       );
       expect(localStorageMock.removeItem).toHaveBeenCalledWith('production-config-overrides');
     });
@@ -401,7 +401,7 @@ describe('ProductionConfigManager', () => {
       mockStorage['production-config-overrides'] = JSON.stringify({ apiBaseUrl: 'http://test/api' });
       const mgr = new ProductionConfigManager();
       const nonObjectWarnings = (logger.warn as jest.Mock).mock.calls.filter(
-        (args: unknown[]) => typeof args[0] === 'string' && args[0].includes('non-object'),
+        (args: unknown[]) => typeof args[0] === 'string' && args[0].includes('failed type validation'),
       );
       expect(nonObjectWarnings).toHaveLength(0);
       expect(mgr.getConfig().apiBaseUrl).toBe('http://test/api');
@@ -432,7 +432,7 @@ describe('ProductionConfigManager', () => {
       mockStorage['production-config-overrides'] = JSON.stringify({ apiBaseUrl: 123 });
       const mgr = new ProductionConfigManager();
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('malformed config'),
+        expect.stringContaining('failed type validation'),
       );
       expect(localStorageMock.removeItem).toHaveBeenCalledWith('production-config-overrides');
       expect(mgr.getConfig().apiBaseUrl).toContain('localhost');
@@ -442,7 +442,7 @@ describe('ProductionConfigManager', () => {
       mockStorage['production-config-overrides'] = JSON.stringify({ apiBaseUrl: true });
       new ProductionConfigManager();
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('malformed config'),
+        expect.stringContaining('failed type validation'),
       );
     });
 
@@ -452,7 +452,7 @@ describe('ProductionConfigManager', () => {
       });
       new ProductionConfigManager();
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('malformed config'),
+        expect.stringContaining('failed type validation'),
       );
       expect(localStorageMock.removeItem).toHaveBeenCalledWith('production-config-overrides');
     });
@@ -461,7 +461,7 @@ describe('ProductionConfigManager', () => {
       mockStorage['production-config-overrides'] = JSON.stringify({ features: 'invalid' });
       new ProductionConfigManager();
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('malformed config'),
+        expect.stringContaining('failed type validation'),
       );
     });
 
@@ -469,7 +469,7 @@ describe('ProductionConfigManager', () => {
       mockStorage['production-config-overrides'] = JSON.stringify({ features: null });
       new ProductionConfigManager();
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('malformed config'),
+        expect.stringContaining('failed type validation'),
       );
     });
 
@@ -477,7 +477,7 @@ describe('ProductionConfigManager', () => {
       mockStorage['production-config-overrides'] = JSON.stringify({ performance: [1, 2] });
       new ProductionConfigManager();
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('malformed config'),
+        expect.stringContaining('failed type validation'),
       );
     });
 
@@ -485,7 +485,7 @@ describe('ProductionConfigManager', () => {
       mockStorage['production-config-overrides'] = JSON.stringify({ monitoring: 42 });
       new ProductionConfigManager();
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('malformed config'),
+        expect.stringContaining('failed type validation'),
       );
     });
 
@@ -493,7 +493,7 @@ describe('ProductionConfigManager', () => {
       mockStorage['production-config-overrides'] = JSON.stringify({ export: 'bad' });
       new ProductionConfigManager();
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('malformed config'),
+        expect.stringContaining('failed type validation'),
       );
     });
 
@@ -501,7 +501,7 @@ describe('ProductionConfigManager', () => {
       mockStorage['production-config-overrides'] = JSON.stringify({ apiBaseUrl: 'http://valid/api' });
       const mgr = new ProductionConfigManager();
       const malformedWarnings = (logger.warn as jest.Mock).mock.calls.filter(
-        (args: unknown[]) => typeof args[0] === 'string' && args[0].includes('malformed'),
+        (args: unknown[]) => typeof args[0] === 'string' && args[0].includes('failed type validation'),
       );
       expect(malformedWarnings).toHaveLength(0);
       expect(mgr.getConfig().apiBaseUrl).toBe('http://valid/api');
@@ -513,7 +513,7 @@ describe('ProductionConfigManager', () => {
       });
       const mgr = new ProductionConfigManager();
       const malformedWarnings = (logger.warn as jest.Mock).mock.calls.filter(
-        (args: unknown[]) => typeof args[0] === 'string' && args[0].includes('malformed'),
+        (args: unknown[]) => typeof args[0] === 'string' && args[0].includes('failed type validation'),
       );
       expect(malformedWarnings).toHaveLength(0);
       expect(mgr.getConfig().performance.maxConcurrentJobs).toBe(5);
@@ -525,7 +525,7 @@ describe('ProductionConfigManager', () => {
       });
       new ProductionConfigManager();
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('malformed config'),
+        expect.stringContaining('failed type validation'),
       );
     });
 
@@ -535,7 +535,7 @@ describe('ProductionConfigManager', () => {
       });
       new ProductionConfigManager();
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('malformed config'),
+        expect.stringContaining('failed type validation'),
       );
     });
 
@@ -543,7 +543,7 @@ describe('ProductionConfigManager', () => {
       mockStorage['production-config-overrides'] = JSON.stringify({ name: 123 });
       new ProductionConfigManager();
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('malformed config'),
+        expect.stringContaining('failed type validation'),
       );
     });
 
@@ -555,7 +555,7 @@ describe('ProductionConfigManager', () => {
       });
       new ProductionConfigManager();
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('malformed config'),
+        expect.stringContaining('failed type validation'),
       );
       expect(localStorageMock.removeItem).toHaveBeenCalledWith('production-config-overrides');
     });

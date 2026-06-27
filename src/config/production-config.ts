@@ -5,7 +5,7 @@
  */
 
 import { logger } from '@/utils/logger';
-import { reportCorruption } from '@/utils/report-corruption';
+import { safeLoadFromStorage } from '@/utils/safe-storage';
 
 export interface ProductionEnvironment {
   name: 'development' | 'staging' | 'production';
@@ -339,23 +339,19 @@ export class ProductionConfigManager {
    * Load configuration overrides from localStorage or environment
    */
   private loadConfigOverrides(): void {
-    try {
-      const storedOverrides = localStorage.getItem('production-config-overrides');
-      if (storedOverrides) {
-        const parsed = JSON.parse(storedOverrides);
-        if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          if (ProductionConfigManager.validateConfigOverrides(parsed as Record<string, unknown>)) {
-            this.configOverrides = parsed;
-          } else {
-            reportCorruption('ProductionConfig', 'localStorage "production-config-overrides" contained malformed config (field type mismatch); resetting');
-            try { localStorage.removeItem('production-config-overrides'); } catch { /* noop */ }
-          }
-        } else {
-          reportCorruption('ProductionConfig', 'localStorage "production-config-overrides" contained non-object value; resetting');
-          try { localStorage.removeItem('production-config-overrides'); } catch { /* noop */ }
-        }
-      }
+    const parsed = safeLoadFromStorage(
+      'production-config-overrides',
+      (v): v is Record<string, unknown> =>
+        v !== null && typeof v === 'object' && !Array.isArray(v) &&
+        ProductionConfigManager.validateConfigOverrides(v as Record<string, unknown>),
+      'ProductionConfig',
+      {} as Record<string, unknown>,
+    );
+    if (Object.keys(parsed).length > 0) {
+      this.configOverrides = parsed as Partial<ProductionEnvironment>;
+    }
 
+    try {
       // Environment variable overrides (ISS-012: browser-safe access)
       const maxConcurrent = ProductionConfigManager.getEnvVar('REACT_APP_MAX_CONCURRENT_JOBS');
       if (maxConcurrent) {
