@@ -94,6 +94,29 @@ describe('reportCorruption', () => {
     expect(throwingHandler).toHaveBeenCalled();
   });
 
+  it('should log handler errors via logger.error', () => {
+    const errorSpy = jest.spyOn(logger, 'error').mockImplementation(() => {});
+    const throwingHandler = jest.fn(() => { throw new Error('handler crashed'); });
+    setCorruptionHandler(throwingHandler);
+
+    reportCorruption('Src', 'detail');
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[report-corruption] Corruption handler threw:'),
+      expect.any(Error),
+    );
+    errorSpy.mockRestore();
+  });
+
+  it('should still return report when handler throws', () => {
+    const throwingHandler = jest.fn(() => { throw new Error('handler crashed'); });
+    setCorruptionHandler(throwingHandler);
+
+    const report = reportCorruption('Src', 'detail');
+    expect(report.source).toBe('Src');
+    expect(report.detail).toBe('detail');
+  });
+
   it('should handle multiple sequential reports', () => {
     const handler = jest.fn();
     setCorruptionHandler(handler);

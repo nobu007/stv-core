@@ -64,8 +64,9 @@ export function reportCorruption(
   if (activeHandler) {
     try {
       activeHandler(report);
-    } catch {
-      // Handler errors must never propagate to the caller
+    } catch (handlerError) {
+      // Handler errors must never propagate to the caller, but should be logged
+      logger.error('[report-corruption] Corruption handler threw:', handlerError);
     }
   }
 
