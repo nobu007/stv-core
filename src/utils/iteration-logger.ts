@@ -99,7 +99,7 @@ This log tracks iterative improvements following the custom instructions philoso
   private generateEntryMarkdown(entry: IterationLogEntry): string {
     const { iteration, phase, timestamp, success, metrics, config, improvements, nextSteps, errorMessage } = entry;
 
-    let markdown = `## ${phase}\n\n`;
+    let markdown = `### Iteration ${iteration} - ${success ? 'success' : 'failure'}\n`;
     markdown += `### Iteration ${iteration} - ${success ? 'success' : 'failure'}\n`;
     markdown += `**Date**: ${timestamp}\n\n`;
 
@@ -159,7 +159,7 @@ This log tracks iterative improvements following the custom instructions philoso
    */
   private insertEntry(existingContent: string, newEntry: string, phase: string): string {
     // Update "Last Updated" timestamp
-    const updatedHeader = existingContent.replace(
+    let content = existingContent.replace(
       /Last Updated: .*/,
       `Last Updated: ${new Date().toISOString()}`
     );
@@ -168,16 +168,44 @@ This log tracks iterative improvements following the custom instructions philoso
     const escapedPhase = phase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const phaseRegex = new RegExp(`## ${escapedPhase}\\n`, 'i');
 
-    if (phaseRegex.test(updatedHeader)) {
+    if (phaseRegex.test(content)) {
       // Insert after phase header
-      return updatedHeader.replace(
+      content = content.replace(
         phaseRegex,
         `## ${phase}\n\n${newEntry}`
       );
     } else {
-      // Append new phase section
-      return updatedHeader + `\n${newEntry}`;
+      // Append new phase section with header
+      content = content + `\n## ${phase}\n\n${newEntry}`;
     }
+
+    // Enforce max entries to prevent unbounded log growth
+    content = this.trimOldEntries(content);
+
+    return content;
+  }
+
+  /**
+   * Trim oldest entries when total count exceeds MAX_LOG_ENTRIES.
+   * Newer entries appear earlier in the file (prepended on insert),
+   * so the oldest entries are at the end of the matches array.
+   */
+  private trimOldEntries(content: string): string {
+    const allEntries = [...content.matchAll(/### Iteration \d+ - (success|failure)/g)];
+    if (allEntries.length <= this.MAX_LOG_ENTRIES) return content;
+
+    const toRemove = allEntries.length - this.MAX_LOG_ENTRIES;
+    // Work backwards from the end (oldest entries) so indices stay valid
+    for (let i = 0; i < toRemove; i++) {
+      const match = allEntries[allEntries.length - 1 - i];
+      const start = match.index!;
+      // Find the end of this entry block: next "---" or "### Iteration" or "## " or EOF
+      const afterStart = content.substring(start);
+      const endMatch = afterStart.match(/\n---\n|\n### Iteration \d+|\n## /);
+      const endIdx = endMatch ? endMatch.index! + 1 : afterStart.length; // +1 to include the \n before delimiter
+      content = content.substring(0, start) + content.substring(start + endIdx);
+    }
+    return content;
   }
 
   /**
@@ -189,30 +217,62 @@ This log tracks iterative improvements following the custom instructions philoso
       await this.ensureLogFile();
       const content = await fs.promises.readFile(this.logPath, 'utf-8');
 
-      // Simple parsing - extract iteration numbers and success status
       const entries: IterationLogEntry[] = [];
-      const iterationRegex = /### Iteration (\d+) - (success|failure)/g;
-      const matches = [...content.matchAll(iterationRegex)];
 
-      matches.forEach(match => {
-        entries.push({
-          iteration: parseInt(match[1], 10),
-          phase: 'Unknown', // Would need more sophisticated parsing
-          timestamp: new Date().toISOString(),
-          success: match[2] === 'success',
-          metrics: {
-            totalProcessingTime: 0,
-            transcriptionTime: 0,
-            analysisTime: 0,
-            layoutTime: 0,
-            renderTime: 0,
-            segmentCount: 0,
-            diagramCount: 0,
-            successRate: match[2] === 'success' ? 1 : 0
-          },
-          config: {}
-        });
-      });
+      // Split content into phase sections
+      const phaseSections = content.split(/^## /m);
+
+      for (const section of phaseSections) {
+        // Extract phase name from section header (first line, up to newline)
+        const phaseMatch = section.match(/^([^\n]+)/);
+        if (!phaseMatch) continue;
+        const phaseName = phaseMatch[1].trim();
+
+        // Skip non-phase sections (like "Iteration History", "Getting Started")
+        if (phaseName === 'Iteration History' || phaseName === 'Getting Started') continue;
+
+        // Find all iteration entries within this phase section
+        const iterRegex = /### Iteration (\d+) - (success|failure)\n\*\*Date\*\*: ([^\n]+)/g;
+        const iterMatches = [...section.matchAll(iterRegex)];
+
+        for (const match of iterMatches) {
+          const iteration = parseInt(match[1], 10);
+          const success = match[2] === 'success';
+          const timestamp = match[3];
+
+          // Extract metrics from the section around this match
+          const afterEntry = section.substring(match.index! + match[0].length);
+          const nextEntryIdx = afterEntry.search(/### Iteration \d+|^---$/m);
+          const entryContent = nextEntryIdx > 0 ? afterEntry.substring(0, nextEntryIdx) : afterEntry;
+
+          const processingTimeMatch = entryContent.match(/Processing Time:\s*([\d.]+)s/);
+          const transcriptionMatch = entryContent.match(/Transcription:\s*([\d.]+)s/);
+          const analysisMatch = entryContent.match(/Analysis:\s*([\d.]+)s/);
+          const layoutMatch = entryContent.match(/Layout:\s*([\d.]+)s/);
+          const renderMatch = entryContent.match(/Preparation:\s*([\d.]+)s/);
+          const segmentsMatch = entryContent.match(/Segments:\s*(\d+)/);
+          const diagramsMatch = entryContent.match(/Diagrams:\s*(\d+)/);
+          const successRateMatch = entryContent.match(/Success Rate:\s*([\d.]+)%/);
+
+          entries.push({
+            iteration,
+            phase: phaseName,
+            timestamp,
+            success,
+            metrics: {
+              totalProcessingTime: processingTimeMatch ? parseFloat(processingTimeMatch[1]) * 1000 : 0,
+              transcriptionTime: transcriptionMatch ? parseFloat(transcriptionMatch[1]) * 1000 : 0,
+              analysisTime: analysisMatch ? parseFloat(analysisMatch[1]) * 1000 : 0,
+              layoutTime: layoutMatch ? parseFloat(layoutMatch[1]) * 1000 : 0,
+              renderTime: renderMatch ? parseFloat(renderMatch[1]) * 1000 : 0,
+              segmentCount: segmentsMatch ? parseInt(segmentsMatch[1], 10) : 0,
+              diagramCount: diagramsMatch ? parseInt(diagramsMatch[1], 10) : 0,
+              successRate: successRateMatch ? parseFloat(successRateMatch[1]) / 100 : (success ? 1 : 0),
+            },
+            config: {},
+          });
+        }
+      }
 
       return entries;
     } catch (error) {
