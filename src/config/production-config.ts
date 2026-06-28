@@ -5,7 +5,7 @@
  */
 
 import { logger } from '@/utils/logger';
-import { safeLoadFromStorage } from '@/utils/safe-storage';
+import { safeLoadFromStorage, safeSaveToStorage } from '@/utils/safe-storage';
 
 export interface ProductionEnvironment {
   name: 'development' | 'staging' | 'production';
@@ -405,11 +405,7 @@ export class ProductionConfigManager {
       ...overrides
     };
 
-    try {
-      localStorage.setItem('production-config-overrides', JSON.stringify(this.configOverrides));
-    } catch (error) {
-      logger.warn('Failed to save configuration overrides:', error);
-    }
+    safeSaveToStorage('production-config-overrides', this.configOverrides, 'ProductionConfigManager');
   }
 
   /**
