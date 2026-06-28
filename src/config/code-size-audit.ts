@@ -142,7 +142,8 @@ export function collectMetrics(
     let entries: fs.Dirent[];
     try {
       entries = fs.readdirSync(dir, { withFileTypes: true });
-    } catch {
+    } catch (error) {
+      logger.warn(`[code-size-audit] Could not read directory "${dir}":`, error);
       return;
     }
 

@@ -496,6 +496,7 @@ export class ProductionConfigManager {
         cpuCores
       };
     } catch (error) {
+      logger.warn('[ProductionConfig] Failed to gather system info, using defaults:', error);
       return {
         availableMemory: 1024,
         cpuCores: 4
