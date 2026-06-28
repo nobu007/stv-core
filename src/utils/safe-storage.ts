@@ -58,3 +58,39 @@ export function safeLoadFromStorage<T>(
   try { localStorage.removeItem(key); } catch { /* noop */ }
   return defaultValue;
 }
+
+/**
+ * Safely serialize and persist a value to localStorage.
+ *
+ * Wraps the common pattern:
+ *   1. JSON.stringify(value)
+ *   2. localStorage.setItem(key, serialized)
+ *   3. On any failure: reportCorruption + return false
+ *
+ * @param key     localStorage key
+ * @param value   Value to serialize and store
+ * @param source  Logical source identifier for corruption reports
+ * @returns       `true` on success, `false` on failure
+ */
+export function safeSaveToStorage(
+  key: string,
+  value: unknown,
+  source: string,
+): boolean {
+  let serialized: string;
+  try {
+    serialized = JSON.stringify(value);
+  } catch {
+    reportCorruption(source, `localStorage "${key}" could not be serialized; skipping write`);
+    return false;
+  }
+
+  try {
+    localStorage.setItem(key, serialized);
+    return true;
+  } catch {
+    // localStorage may throw (private mode, quota exceeded, etc.)
+    reportCorruption(source, `localStorage "${key}" write failed (quota or access denied)`);
+    return false;
+  }
+}

@@ -16,7 +16,7 @@ jest.mock('@/utils/logger', () => ({
   },
 }));
 
-import { safeLoadFromStorage } from '../safe-storage';
+import { safeLoadFromStorage, safeSaveToStorage } from '../safe-storage';
 import { setCorruptionHandler, type CorruptionReport } from '../report-corruption';
 
 // ── localStorage mock ──
@@ -210,6 +210,117 @@ describe('safeLoadFromStorage', () => {
       mockStorage['bad'] = '{{corrupted}}';
       const result = safeLoadFromStorage('bad', isRecord, 'Test', defaultObj);
       expect(result).toBe(defaultObj);
+    });
+  });
+});
+
+describe('safeSaveToStorage', () => {
+  let reports: CorruptionReport[];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    for (const k of Object.keys(mockStorage)) delete mockStorage[k];
+    reports = [];
+    setCorruptionHandler((r) => reports.push(r));
+  });
+
+  afterEach(() => {
+    setCorruptionHandler(null);
+  });
+
+  describe('happy path', () => {
+    it('serializes and stores value successfully', () => {
+      const result = safeSaveToStorage('test-key', { name: 'abc' }, 'TestSource');
+      expect(result).toBe(true);
+      expect(mockStorage['test-key']).toBe(JSON.stringify({ name: 'abc' }));
+    });
+
+    it('stores arrays correctly', () => {
+      const result = safeSaveToStorage('arr', [1, 2, 3], 'TestSource');
+      expect(result).toBe(true);
+      expect(mockStorage['arr']).toBe('[1,2,3]');
+    });
+
+    it('stores primitives correctly', () => {
+      expect(safeSaveToStorage('num', 42, 'TestSource')).toBe(true);
+      expect(mockStorage['num']).toBe('42');
+
+      expect(safeSaveToStorage('str', 'hello', 'TestSource')).toBe(true);
+      expect(mockStorage['str']).toBe('"hello"');
+
+      expect(safeSaveToStorage('bool', true, 'TestSource')).toBe(true);
+      expect(mockStorage['bool']).toBe('true');
+    });
+
+    it('stores null correctly', () => {
+      expect(safeSaveToStorage('null-val', null, 'TestSource')).toBe(true);
+      expect(mockStorage['null-val']).toBe('null');
+    });
+
+    it('does not emit corruption report on success', () => {
+      safeSaveToStorage('ok', { data: 1 }, 'TestSource');
+      expect(reports).toHaveLength(0);
+    });
+  });
+
+  describe('serialization failure', () => {
+    it('returns false for circular references', () => {
+      const circular: Record<string, unknown> = {};
+      circular.self = circular;
+      const result = safeSaveToStorage('circular', circular, 'CircularSource');
+      expect(result).toBe(false);
+    });
+
+    it('emits corruption report for serialization failure', () => {
+      const circular: Record<string, unknown> = {};
+      circular.self = circular;
+      safeSaveToStorage('circular', circular, 'CircularSource');
+      expect(reports).toHaveLength(1);
+      expect(reports[0].source).toBe('CircularSource');
+      expect(reports[0].detail).toContain('could not be serialized');
+    });
+
+    it('does not write to localStorage on serialization failure', () => {
+      const circular: Record<string, unknown> = {};
+      circular.self = circular;
+      safeSaveToStorage('circular', circular, 'TestSource');
+      expect(mockStorage['circular']).toBeUndefined();
+    });
+  });
+
+  describe('localStorage.setItem failure', () => {
+    it('returns false when setItem throws (quota exceeded)', () => {
+      localStorageMock.setItem.mockImplementationOnce(() => {
+        throw new DOMException('QuotaExceededError');
+      });
+      const result = safeSaveToStorage('quota', { data: 'test' }, 'QuotaSource');
+      expect(result).toBe(false);
+    });
+
+    it('emits corruption report when setItem throws', () => {
+      localStorageMock.setItem.mockImplementationOnce(() => {
+        throw new Error('SecurityError');
+      });
+      safeSaveToStorage('denied', { data: 1 }, 'SecuritySource');
+      expect(reports).toHaveLength(1);
+      expect(reports[0].source).toBe('SecuritySource');
+      expect(reports[0].detail).toContain('write failed');
+    });
+  });
+
+  describe('round-trip: safeSaveToStorage → safeLoadFromStorage', () => {
+    it('value saved by safeSave can be loaded by safeLoad', () => {
+      const data = { items: ['a', 'b'], count: 2 };
+      safeSaveToStorage('rt', data, 'RoundTrip');
+
+      const loaded = safeLoadFromStorage(
+        'rt',
+        (v): v is typeof data => v !== null && typeof v === 'object' && !Array.isArray(v),
+        'RoundTrip',
+        { items: [], count: 0 },
+      );
+
+      expect(loaded).toEqual(data);
     });
   });
 });
