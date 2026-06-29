@@ -100,7 +100,6 @@ This log tracks iterative improvements following the custom instructions philoso
     const { iteration, phase, timestamp, success, metrics, config, improvements, nextSteps, errorMessage } = entry;
 
     let markdown = `### Iteration ${iteration} - ${success ? 'success' : 'failure'}\n`;
-    markdown += `### Iteration ${iteration} - ${success ? 'success' : 'failure'}\n`;
     markdown += `**Date**: ${timestamp}\n\n`;
 
     // Metrics section
