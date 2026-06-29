@@ -158,8 +158,8 @@ export class ActualVideoRenderer {
               projectRoot = current;
               break;
             }
-          } catch {
-            // ignore errors when traversing up the directory tree
+          } catch (traverseError) {
+            logger.debug('[ActualVideoRenderer] Package.json parse error during directory traversal:', traverseError);
           }
         }
       }

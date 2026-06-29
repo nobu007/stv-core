@@ -1,4 +1,5 @@
 import { SceneGraph } from '@/types/diagram';
+import { logger } from '@/utils/logger';
 
 export interface VideoRenderOptions {
   scenes: SceneGraph[];
@@ -110,8 +111,8 @@ export class VideoRenderer {
               stage: step.stage
             });
           }
-        } catch {
-          // Swallow errors from progress callback to prevent interval crash
+        } catch (progressError) {
+          logger.warn('[VideoRenderer] Progress callback error (non-blocking):', progressError);
         }
       }, 100);
 
