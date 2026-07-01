@@ -29,7 +29,19 @@ export type PositionedNode = NodeDatum & {
   y: number;
   width?: number;
   height?: number;
+  /**
+   * @deprecated Use `width` instead.  The `getNodeWidth()` helper in
+   * `visualization/node-dimensions.ts` reads `width` first, then falls
+   * back to `w`.  Direct access to `.w` bypasses the NaN guard.
+   * Will be removed once all producers write `width`.
+   */
   w?: number;
+  /**
+   * @deprecated Use `height` instead.  The `getNodeHeight()` helper in
+   * `visualization/node-dimensions.ts` reads `height` first, then falls
+   * back to `h`.  Direct access to `.h` bypasses the NaN guard.
+   * Will be removed once all producers write `height`.
+   */
   h?: number;
 };
 
