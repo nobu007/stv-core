@@ -1,12 +1,12 @@
 /**
  * REQ-102: Code Size Automatic Audit
  *
- * Audits code size against SYSTEM_CONSTITUTION V2.4 limits.
+ * Audits code size against SYSTEM_CONSTITUTION V2.6 limits.
  * Outputs warnings when limits are exceeded but does not block the build.
  *
- * Limits (V2.4):
- * - Total files: 340 or fewer
- * - Total lines: 100,000 or fewer
+ * Limits (V2.6):
+ * - Total files: 380 or fewer
+ * - Total lines: 115,000 or fewer
  * - Per-file max: 2,000 lines
  * - Dependencies: 110 packages or fewer
  */
@@ -47,12 +47,12 @@ export interface CodeSizeAuditResult {
 }
 
 // ---------------------------------------------------------------------------
-// Constants — SYSTEM_CONSTITUTION V2.4
+// Constants — SYSTEM_CONSTITUTION V2.6
 // ---------------------------------------------------------------------------
 
 export const SYSTEM_CONSTITUTION_LIMITS: CodeSizeLimits = {
-  maxFiles: 340,
-  maxLines: 100_000,
+  maxFiles: 380,
+  maxLines: 115_000,
   maxLinesPerFile: 2_000,
   maxDependencies: 110,
 };

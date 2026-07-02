@@ -41,7 +41,7 @@ describe('code-size-audit', () => {
       const result = evaluateAudit(metrics);
       expect(result.isCompliant).toBe(false);
       expect(result.warnings).toHaveLength(1);
-      expect(result.warnings[0]).toContain('File count 500 exceeds limit of 340');
+      expect(result.warnings[0]).toContain('File count 500 exceeds limit of 380');
     });
 
     it('should return non-compliant when line count exceeds limit', () => {
@@ -49,7 +49,7 @@ describe('code-size-audit', () => {
       const result = evaluateAudit(metrics);
       expect(result.isCompliant).toBe(false);
       expect(result.warnings).toHaveLength(1);
-      expect(result.warnings[0]).toContain('Total lines 150,000 exceeds limit of 100,000');
+      expect(result.warnings[0]).toContain('Total lines 150,000 exceeds limit of 115,000');
     });
 
     it('should format line count with locale-specific grouping', () => {
@@ -151,9 +151,9 @@ describe('code-size-audit', () => {
   // --- SYSTEM_CONSTITUTION_LIMITS ---
 
   describe('SYSTEM_CONSTITUTION_LIMITS', () => {
-    it('should have correct values per V2.4 constitution', () => {
-      expect(SYSTEM_CONSTITUTION_LIMITS.maxFiles).toBe(340);
-      expect(SYSTEM_CONSTITUTION_LIMITS.maxLines).toBe(100_000);
+    it('should have correct values per V2.6 constitution', () => {
+      expect(SYSTEM_CONSTITUTION_LIMITS.maxFiles).toBe(380);
+      expect(SYSTEM_CONSTITUTION_LIMITS.maxLines).toBe(115_000);
       expect(SYSTEM_CONSTITUTION_LIMITS.maxLinesPerFile).toBe(2000);
       expect(SYSTEM_CONSTITUTION_LIMITS.maxDependencies).toBe(110);
     });
