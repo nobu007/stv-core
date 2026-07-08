@@ -14,6 +14,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { logger } from '../utils/logger';
+import { safeToLocaleString } from '../utils/guards';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -79,7 +80,7 @@ export function evaluateAudit(
 
   if (metrics.lineCount > limits.maxLines) {
     warnings.push(
-      `Total lines ${metrics.lineCount.toLocaleString()} exceeds limit of ${limits.maxLines.toLocaleString()}`,
+      `Total lines ${safeToLocaleString(metrics.lineCount)} exceeds limit of ${safeToLocaleString(limits.maxLines)}`,
     );
   }
 

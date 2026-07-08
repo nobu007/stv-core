@@ -65,3 +65,21 @@ export function clampFinite(value: unknown, min: number, max: number): number {
   const v = sanitizeFinite(value, min);
   return Math.min(Math.max(v, min), max);
 }
+
+/**
+ * Safely call `.toLocaleString()` on a value that might be null/undefined/NaN.
+ *
+ * Returns `'0'` (or `defaultValue`) when the input is not a finite number,
+ * preventing `TypeError: Cannot read properties of undefined (reading 'toLocaleString')`.
+ *
+ * ```ts
+ * safeToLocaleString(12345);        // → '12,345'
+ * safeToLocaleString(undefined);    // → '0'
+ * safeToLocaleString(NaN);          // → '0'
+ * safeToLocaleString(null, '—');    // → '—'
+ * ```
+ */
+export function safeToLocaleString(value: unknown, defaultValue: string = '0'): string {
+  if (typeof value === 'number' && Number.isFinite(value)) return value.toLocaleString();
+  return defaultValue;
+}

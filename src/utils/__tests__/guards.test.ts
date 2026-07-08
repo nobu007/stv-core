@@ -8,6 +8,7 @@ import {
   sanitizeFinite,
   sanitizeDiagramType,
   clampFinite,
+  safeToLocaleString,
 } from '../guards';
 
 // ============================================================
@@ -262,5 +263,74 @@ describe('clampFinite', () => {
   it('handles edge boundary values exactly', () => {
     expect(clampFinite(0, 0, 1)).toBe(0);
     expect(clampFinite(1, 0, 1)).toBe(1);
+  });
+});
+
+// ============================================================
+// safeToLocaleString
+// ============================================================
+
+describe('safeToLocaleString', () => {
+  it('returns formatted string for valid number', () => {
+    expect(safeToLocaleString(12345)).toBe((12345).toLocaleString());
+  });
+
+  it('returns formatted string for zero', () => {
+    expect(safeToLocaleString(0)).toBe('0');
+  });
+
+  it('returns formatted string for negative number', () => {
+    expect(safeToLocaleString(-1000)).toBe((-1000).toLocaleString());
+  });
+
+  it('returns "0" default for undefined', () => {
+    expect(safeToLocaleString(undefined)).toBe('0');
+  });
+
+  it('returns "0" default for null', () => {
+    expect(safeToLocaleString(null)).toBe('0');
+  });
+
+  it('returns "0" default for NaN', () => {
+    expect(safeToLocaleString(NaN)).toBe('0');
+  });
+
+  it('returns "0" default for Infinity', () => {
+    expect(safeToLocaleString(Infinity)).toBe('0');
+  });
+
+  it('returns "0" default for -Infinity', () => {
+    expect(safeToLocaleString(-Infinity)).toBe('0');
+  });
+
+  it('returns "0" default for string', () => {
+    expect(safeToLocaleString('hello')).toBe('0');
+  });
+
+  it('returns "0" default for object', () => {
+    expect(safeToLocaleString({})).toBe('0');
+  });
+
+  it('returns custom default for undefined', () => {
+    expect(safeToLocaleString(undefined, 'N/A')).toBe('N/A');
+  });
+
+  it('returns custom default for null', () => {
+    expect(safeToLocaleString(null, '—')).toBe('—');
+  });
+
+  it('returns custom default for NaN', () => {
+    expect(safeToLocaleString(NaN, '?')).toBe('?');
+  });
+
+  // --- Red-phase verification: unguarded .toLocaleString() would crash ---
+
+  it('RED-PHASE: unguarded undefined.toLocaleString() throws TypeError', () => {
+    // This proves the guard is necessary — the raw call crashes
+    expect(() => (undefined as unknown as number).toLocaleString()).toThrow(TypeError);
+  });
+
+  it('RED-PHASE: unguarded null.toLocaleString() throws TypeError', () => {
+    expect(() => (null as unknown as number).toLocaleString()).toThrow(TypeError);
   });
 });
