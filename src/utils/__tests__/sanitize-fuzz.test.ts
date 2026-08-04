@@ -360,6 +360,7 @@ describe('Fuzz: sanitizeFilename neutralizes randomized path traversal payloads'
     expect(sanitized).not.toContain('\0');
 
     // Must not contain control characters
+    // eslint-disable-next-line no-control-regex
     expect(sanitized).not.toMatch(/[\x00-\x1f\x7f]/);
 
     // Must not start with a dot (hidden file)
