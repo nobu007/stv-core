@@ -5,13 +5,14 @@
  */
 
 import { jest } from '@jest/globals';
+import type { SceneGraph } from '@/types/diagram';
 
-// Mock Remotion dependencies
-jest.mock('@remotion/bundler', () => ({
+// Mock Remotion dependencies (ESM mode requires unstable_mockModule)
+jest.unstable_mockModule('@remotion/bundler', () => ({
   bundle: jest.fn().mockResolvedValue('/tmp/mock-bundle'),
 }));
 
-jest.mock('@remotion/renderer', () => ({
+jest.unstable_mockModule('@remotion/renderer', () => ({
   selectComposition: jest.fn().mockResolvedValue({
     durationInFrames: 0, // will be overwritten
     fps: 30,
@@ -22,19 +23,20 @@ jest.mock('@remotion/renderer', () => ({
   renderMedia: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock('fs', () => ({
-  existsSync: jest.fn().mockReturnValue(true),
-  mkdirSync: jest.fn(),
-  promises: {
-    access: jest.fn().mockResolvedValue(undefined),
-    writeFile: jest.fn().mockResolvedValue(undefined),
-    readFile: jest.fn().mockResolvedValue('{}'),
+jest.unstable_mockModule('fs', () => ({
+  default: {
+    existsSync: jest.fn().mockReturnValue(true),
+    mkdirSync: jest.fn(),
+    promises: {
+      access: jest.fn().mockResolvedValue(undefined),
+      writeFile: jest.fn().mockResolvedValue(undefined),
+      readFile: jest.fn().mockResolvedValue('{}'),
+    },
   },
 }));
 
-import { ActualVideoRenderer } from '../actualVideoRenderer';
-import type { SceneGraph } from '@/types/diagram';
-import { selectComposition } from '@remotion/renderer';
+const { ActualVideoRenderer } = await import('../actualVideoRenderer');
+const { selectComposition } = await import('@remotion/renderer');
 
 function makeScene(id: string, durationMs: number, startTime?: number, endTime?: number): SceneGraph {
   return {
