@@ -192,8 +192,8 @@ export function readDependencyCount(packageJsonPath: string): number {
   };
   try {
     pkg = JSON.parse(raw);
-  } catch {
-    logger.warn(`Failed to parse ${packageJsonPath}; returning 0 dependencies.`);
+  } catch (e) {
+    logger.warn(`Failed to parse ${packageJsonPath}: ${String(e)}; returning 0 dependencies.`);
     return 0;
   }
   const deps = Object.keys(pkg.dependencies ?? {}).length;

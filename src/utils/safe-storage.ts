@@ -41,9 +41,11 @@ export function safeLoadFromStorage<T>(
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
-  } catch {
-    reportCorruption(source, `localStorage "${key}" contained unparseable JSON; removing`);
-    try { localStorage.removeItem(key); } catch { /* noop */ }
+  } catch (parseErr) {
+    reportCorruption(source, `localStorage "${key}" contained unparseable JSON: ${String(parseErr)}; removing`);
+    try { localStorage.removeItem(key); } catch (removeErr) {
+      reportCorruption(source, `localStorage "${key}" could not be removed after parse failure: ${String(removeErr)}`);
+    }
     return defaultValue;
   }
 
@@ -55,7 +57,9 @@ export function safeLoadFromStorage<T>(
     source,
     `localStorage "${key}" contained valid JSON but failed type validation; removing`,
   );
-  try { localStorage.removeItem(key); } catch { /* noop */ }
+  try { localStorage.removeItem(key); } catch (removeErr) {
+    reportCorruption(source, `localStorage "${key}" could not be removed after type validation failure: ${String(removeErr)}`);
+  }
   return defaultValue;
 }
 
