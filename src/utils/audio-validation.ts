@@ -58,7 +58,7 @@ export function validateAudioFile(file: File): AudioValidationResult {
   const validExtensions = [...SUPPORTED_AUDIO_FORMATS, 'webm'];
   const ext = file.name.split('.').pop()?.toLowerCase();
 
-  const typeValid = validTypes.some(t => file.type === t) || file.type.startsWith('audio/');
+  const typeValid = validTypes.some(t => file.type === t) || (file.type?.startsWith('audio/') ?? false);
   const extValid = ext !== undefined && validExtensions.includes(ext);
 
   if (!typeValid && !extValid) {
