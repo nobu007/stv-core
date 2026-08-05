@@ -238,7 +238,10 @@ export interface Role {
   workspaceId?: string;
 }
 
-export const SYSTEM_ROLES: Record<string, Role> = {
+/** System role keys corresponding to WorkspaceMember.role values. */
+export type SystemRoleKey = 'owner' | 'admin' | 'editor' | 'viewer';
+
+export const SYSTEM_ROLES: Record<SystemRoleKey, Role> = {
   owner: {
     id: 'owner',
     name: 'Owner',
