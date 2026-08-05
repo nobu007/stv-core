@@ -73,7 +73,8 @@ export class IterationLogger {
   private async ensureLogFile(): Promise<void> {
     try {
       await fs.promises.access(this.logPath);
-    } catch {
+    } catch (error) {
+      logger.debug(`[IterationLogger] Log file does not exist yet, creating: ${this.logPath}`, error);
       // File doesn't exist, create with initial structure
       const initialContent = `# Iteration History
 
