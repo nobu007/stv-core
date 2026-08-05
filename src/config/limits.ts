@@ -103,8 +103,11 @@ export const EXPORT_RETRY_LIMITS = {
   JITTER_MAX_MS: 500,
 } as const;
 
+/** Export stages that have timeout configuration */
+export type ExportTimeoutStage = 'preparing' | 'rendering' | 'encoding' | 'finalizing';
+
 /** Export stage timeout configuration in ms (REQ-228) */
-export const EXPORT_STAGE_TIMEOUTS = {
+export const EXPORT_STAGE_TIMEOUTS: Record<ExportTimeoutStage, number> = {
   /** Preparing stage timeout (scene validation, codec setup) */
   preparing: 30_000,
   /** Rendering stage timeout (frame generation) */
@@ -113,7 +116,7 @@ export const EXPORT_STAGE_TIMEOUTS = {
   encoding: 300_000,
   /** Finalizing stage timeout (verification, file write) */
   finalizing: 60_000,
-} as const;
+};
 
 /** Export job queue limits (REQ-229) */
 export const EXPORT_QUEUE_LIMITS = {
