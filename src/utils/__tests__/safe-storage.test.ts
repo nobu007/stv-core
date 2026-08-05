@@ -155,12 +155,16 @@ describe('safeLoadFromStorage', () => {
       expect(result).toEqual(['safe']);
     });
 
-    it('does not emit corruption report for getItem failure (not corruption, just inaccessible)', () => {
+    it('emits corruption report when localStorage.getItem throws', () => {
       localStorageMock.getItem.mockImplementationOnce(() => {
         throw new Error('QuotaExceeded');
       });
       safeLoadFromStorage('any', isStringArray, 'Test', []);
-      expect(reports).toHaveLength(0);
+      expect(reports).toHaveLength(1);
+      expect(reports[0].source).toBe('Test');
+      expect(reports[0].detail).toContain('getItem');
+      expect(reports[0].detail).toContain('QuotaExceeded');
+      expect(reports[0].recovered).toBe(true);
     });
 
     it('does not crash when removeItem throws', () => {

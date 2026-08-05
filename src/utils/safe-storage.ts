@@ -31,8 +31,9 @@ export function safeLoadFromStorage<T>(
   let raw: string | null;
   try {
     raw = localStorage.getItem(key);
-  } catch {
+  } catch (storageErr) {
     // localStorage itself may throw (private mode, quota, etc.)
+    reportCorruption(source, `localStorage.getItem("${key}") threw: ${String(storageErr)}`);
     return defaultValue;
   }
 
