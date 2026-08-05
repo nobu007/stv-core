@@ -5,7 +5,10 @@
 import { isDiagramType, isNodeDatum, isEdgeDatum } from '../diagram';
 
 describe('isDiagramType', () => {
-  const validValues: string[] = ['flow', 'tree', 'timeline', 'matrix', 'cycle'];
+  const validValues: string[] = [
+    'flow', 'flowchart', 'tree', 'timeline', 'matrix', 'cycle',
+    'comparison', 'network', 'conceptmap', 'mindmap', 'general',
+  ];
 
   test.each(validValues)('returns true for valid DiagramType: %s', (value) => {
     expect(isDiagramType(value)).toBe(true);
