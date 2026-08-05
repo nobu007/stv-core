@@ -674,4 +674,46 @@ describe('ProductionConfigManager', () => {
       })).toBe(true);
     });
   });
+
+  // ── getEnvVar error logging (silent catch → logger.warn) ──
+  describe('getEnvVar error logging', () => {
+    let warnSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      warnSpy.mockRestore();
+    });
+
+    it('should call logger.warn when process.env access throws', () => {
+      const descriptor = Object.getOwnPropertyDescriptor(process, 'env');
+      Object.defineProperty(process, 'env', {
+        get() { throw new Error('env access denied'); },
+        configurable: true,
+      });
+
+      try {
+        new ProductionConfigManager();
+        const envWarnings = (logger.warn as jest.Mock).mock.calls.filter(
+          (args: unknown[]) => typeof args[0] === 'string' && args[0].includes('production-config'),
+        );
+        expect(envWarnings.length).toBeGreaterThan(0);
+      } finally {
+        if (descriptor) {
+          Object.defineProperty(process, 'env', descriptor);
+        }
+      }
+    });
+
+    it('should not call logger.warn on normal env access', () => {
+      new ProductionConfigManager();
+      const envWarnings = (logger.warn as jest.Mock).mock.calls.filter(
+        (args: unknown[]) => typeof args[0] === 'string' && args[0].includes('production-config'),
+      );
+      expect(envWarnings).toHaveLength(0);
+    });
+  });
 });

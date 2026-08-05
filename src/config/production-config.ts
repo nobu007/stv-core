@@ -78,7 +78,8 @@ export class ProductionConfigManager {
   private static getEnvVar(key: string): string | undefined {
     try {
       return (typeof process !== 'undefined' && process.env) ? process.env[key] : undefined;
-    } catch {
+    } catch (err) {
+      logger.warn(`[production-config] process.env access failed for key "${key}"`, err);
       return undefined;
     }
   }
