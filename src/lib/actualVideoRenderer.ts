@@ -7,6 +7,7 @@ import { bundle } from '@remotion/bundler';
 import { renderMedia, selectComposition } from '@remotion/renderer';
 import type { VideoConfig } from 'remotion';
 import { SceneGraph } from '@/types/diagram';
+import { COMPOSITION_ID } from '@/remotion/composition-id';
 import { RenderingError } from '@/pipeline/pipeline-errors';
 import path from 'path';
 import os from 'os';
@@ -225,7 +226,7 @@ export class ActualVideoRenderer {
 
     const composition = await selectComposition({
       serveUrl: bundleLocation,
-      id: 'DiagramVideo',
+      id: COMPOSITION_ID,
       inputProps,
     });
 

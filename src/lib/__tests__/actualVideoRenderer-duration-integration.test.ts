@@ -12,6 +12,7 @@
 
 import { jest } from '@jest/globals';
 import type { SceneGraph } from '@/types/diagram';
+import { COMPOSITION_ID } from '@/remotion/composition-id';
 
 // Mock Remotion dependencies (ESM mode requires unstable_mockModule)
 jest.unstable_mockModule('@remotion/bundler', () => ({
@@ -24,7 +25,7 @@ jest.unstable_mockModule('@remotion/renderer', () => ({
     fps: 30,
     width: 1920,
     height: 1080,
-    id: 'DiagramVideo',
+    id: COMPOSITION_ID,
   }),
   renderMedia: jest.fn().mockResolvedValue(undefined),
 }));
