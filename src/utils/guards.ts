@@ -62,8 +62,12 @@ export function sanitizeDiagramType(value: unknown, defaultValue: DiagramType = 
  * ```
  */
 export function clampFinite(value: unknown, min: number, max: number): number {
-  const v = sanitizeFinite(value, min);
-  return Math.min(Math.max(v, min), max);
+  if (typeof value === 'number') {
+    if (Number.isFinite(value)) return Math.min(Math.max(value, min), max);
+    // +Infinity → max, -Infinity → min, NaN → min
+    return value > 0 ? max : min;
+  }
+  return min;
 }
 
 /**
