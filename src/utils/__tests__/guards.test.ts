@@ -238,8 +238,8 @@ describe('clampFinite', () => {
     expect(clampFinite(NaN, 0, 1)).toBe(0);
   });
 
-  it('returns min for Infinity', () => {
-    expect(clampFinite(Infinity, 0, 1)).toBe(0); // sanitizeFinite→0 (default=min), then clamped to [0,1]→0
+  it('returns max for Infinity', () => {
+    expect(clampFinite(Infinity, 0, 1)).toBe(1); // Infinity > 0 → max
   });
 
   it('returns min for -Infinity', () => {
