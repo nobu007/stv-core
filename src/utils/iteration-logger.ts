@@ -10,6 +10,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { logger } from './logger';
 import { escapeRegex } from './regex-escape';
+import { DEFAULT_MIN_SEGMENT_LENGTH_MS, DEFAULT_MAX_SEGMENT_LENGTH_MS } from '@/analysis';
 
 export interface IterationLogEntry {
   iteration: number;
@@ -127,8 +128,8 @@ This log tracks iterative improvements following the custom instructions philoso
     // `??` not `||`: pipeline-orchestrator.ts validates minSegmentLengthMs/maxSegmentLengthMs
     // as `>= 0`, so 0 is a legitimate "disable segmentation" sentinel that must be reflected
     // verbatim — using `||` rewrote 0 to the 3000/15000 defaults, masking the caller's intent.
-    markdown += `- Min Segment Length: ${(analysis?.minSegmentLengthMs as number) ?? 3000}ms\n`;
-    markdown += `- Max Segment Length: ${(analysis?.maxSegmentLengthMs as number) ?? 15000}ms\n`;
+    markdown += `- Min Segment Length: ${(analysis?.minSegmentLengthMs as number) ?? DEFAULT_MIN_SEGMENT_LENGTH_MS}ms\n`;
+    markdown += `- Max Segment Length: ${(analysis?.maxSegmentLengthMs as number) ?? DEFAULT_MAX_SEGMENT_LENGTH_MS}ms\n`;
 
     // Improvements
     if (improvements && improvements.length > 0) {
