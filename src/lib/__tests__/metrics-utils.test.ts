@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { computePercentiles } from '@/lib/metrics-utils';
+import { computePercentiles, percentileCeil } from '@/lib/metrics-utils';
 
 /**
  * Canonical single-source percentile behavior lock.
@@ -51,5 +51,67 @@ describe('computePercentiles (canonical single-source)', () => {
     expect(sorted).toContain(p50);
     expect(sorted).toContain(p95);
     expect(sorted).toContain(p99);
+  });
+});
+
+/**
+ * Canonical single-source ceil-rank percentile lock.
+ *
+ * Six call sites (real-time-performance-monitor, performance-dashboard,
+ * recovery-telemetry-aggregator ×2, llm-service getAdaptiveTimeout/getStats)
+ * previously each inlined the ceil-rank formula. These tests lock the ONE
+ * shared implementation AND prove it stays distinct from the floor-rank
+ * `computePercentiles` (the two methods resolve the same sample to different
+ * values and must never be merged).
+ */
+describe('percentileCeil (canonical single-source ceil-rank)', () => {
+  it('returns 0 for an empty sample', () => {
+    expect(percentileCeil([], 0.95)).toBe(0);
+  });
+
+  it('returns the single element for a one-element sample', () => {
+    expect(percentileCeil([42], 0.95)).toBe(42);
+    expect(percentileCeil([42], 0.5)).toBe(42);
+  });
+
+  it('locks the ceil-rank method against the divergent floor-rank helper', () => {
+    // Sentinel: 20 distinct ascending values. The canonical ceil-rank method
+    //   index = max(0, ceil(fraction * n) - 1)
+    // resolves p50 -> sorted[9]=9, p95 -> sorted[18]=18, p99 -> sorted[19]=19.
+    //
+    // The structurally-similar floor-rank `computePercentiles` (index =
+    // min(floor(fraction * n), n - 1)) resolves the SAME sample to
+    // p50 -> sorted[10]=10 and p95 -> sorted[19]=19 — DISTINCT values for p50
+    // and p95. These expected numbers fail if anyone re-points a ceil-rank
+    // caller at the floor-rank helper (or vice-versa), which is exactly the
+    // cross-method drift these two helpers exist to prevent.
+    const sorted = Array.from({ length: 20 }, (_, i) => i); // 0..19
+    expect(percentileCeil(sorted, 0.5)).toBe(9);
+    expect(percentileCeil(sorted, 0.95)).toBe(18);
+    expect(percentileCeil(sorted, 0.99)).toBe(19);
+
+    // Cross-check: the floor-rank helper genuinely disagrees on p50/p95.
+    expect(computePercentiles(sorted).p50).toBe(10);
+    expect(computePercentiles(sorted).p95).toBe(19);
+  });
+
+  it('reproduces the real-time-performance-monitor snapshot values', () => {
+    // Propagation guard: the monitor records 100 linearly-increasing response
+    // times (10, 20, …, 1000). Its snapshot exposes p95/p99 derived from this
+    // helper, so the canonical ceil-rank must yield the same indices the
+    // monitor's own test asserts (p95 > 900, p99 > 950).
+    const sorted = Array.from({ length: 100 }, (_, i) => (i + 1) * 10); // 10..1000
+    // ceil(100 * 0.95) - 1 = 94 -> sorted[94] = 950
+    expect(percentileCeil(sorted, 0.95)).toBe(950);
+    // ceil(100 * 0.99) - 1 = 98 -> sorted[98] = 990
+    expect(percentileCeil(sorted, 0.99)).toBe(990);
+  });
+
+  it('does not internally re-sort the caller-provided sample', () => {
+    // Contract: the caller MUST pre-sort. A descending sample is NOT re-ordered,
+    // so p95 reflects the literal (mis-ordered) index — proving no hidden
+    // internal sort that would mask a caller bug.
+    const descending = Array.from({ length: 20 }, (_, i) => 19 - i); // 19..0
+    expect(percentileCeil(descending, 0.95)).toBe(1); // sorted[18] of the descending array
   });
 });

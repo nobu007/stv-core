@@ -32,3 +32,35 @@ export function computePercentiles(sorted: number[]): Percentiles {
     p99: p(sorted.length * 0.99),
   };
 }
+
+/**
+ * Compute a SINGLE percentile from an ASCENDING-sorted sample using the
+ * ceil-rank method: `index = max(0, ceil(fraction * n) - 1)`. Returns 0 when
+ * the sample is empty.
+ *
+ * This is the canonical ceil-rank counterpart to the floor-rank
+ * {@link computePercentiles} triple. BOTH rank methods live in this codebase
+ * deliberately: ceil-rank and floor-rank resolve the SAME sample to DISTINCT
+ * values, so they must never be merged. Keep them separate.
+ *
+ * Why this exists: the ceil-rank formula was previously inlined — verbatim —
+ * across six call sites (real-time-performance-monitor, performance-dashboard,
+ * recovery-telemetry-aggregator ×2, llm-service `getAdaptiveTimeout` and
+ * `getStats`). Each independent copy can silently drift (dropping the `- 1`,
+ * the `max(0, …)` clamp, or the `|| 0` fallback), and these percentiles feed
+ * live decisions: the memory healthy/degraded/unhealthy status, the
+ * deployment-readiness gate (`adaptive-quality-gates`), and the LLM adaptive
+ * request-timeout gate (`getAdaptiveTimeout`). One canonical implementation
+ * guarantees identical ceil-rank output everywhere.
+ *
+ * NOT for the floor-rank percentiles in `production-monitor` or the floor-rank
+ * p50 median in `llm-service.getStats` — those are a different method by design.
+ *
+ * @param sorted non-decreasing sample values — the caller MUST sort first.
+ * @param fraction desired percentile as a fraction in (0, 1] (e.g. 0.95).
+ */
+export function percentileCeil(sorted: number[], fraction: number): number {
+  if (sorted.length === 0) return 0;
+  const index = Math.max(0, Math.ceil(sorted.length * fraction) - 1);
+  return sorted[index];
+}
