@@ -89,10 +89,19 @@ export type { PipelineResult as ProcessingResult } from './pipeline';
 // Type Guards
 // ========================================
 
-const DIAGRAM_TYPES: readonly string[] = ['flow', 'flowchart', 'tree', 'timeline', 'matrix', 'cycle', 'comparison', 'network', 'conceptmap', 'mindmap', 'general'];
+/**
+ * Canonical, single-source list of every `DiagramType`.
+ *
+ * Exported so consumers iterate the canonical set instead of re-literalizing
+ * the union (which silently drifts when a type is added — e.g. a scoring loop
+ * re-literalizing this list would skip a newly-added type because the
+ * accompanying `as DiagramType[]` cast defeats the type-checker). Typed as
+ * `readonly DiagramType[]` so mapped values infer `DiagramType` directly.
+ */
+export const DIAGRAM_TYPES: readonly DiagramType[] = ['flow', 'flowchart', 'tree', 'timeline', 'matrix', 'cycle', 'comparison', 'network', 'conceptmap', 'mindmap', 'general'];
 
 export function isDiagramType(value: unknown): value is DiagramType {
-  return typeof value === 'string' && DIAGRAM_TYPES.includes(value);
+  return typeof value === 'string' && (DIAGRAM_TYPES as readonly string[]).includes(value);
 }
 
 export function isNodeDatum(value: unknown): value is NodeDatum {
