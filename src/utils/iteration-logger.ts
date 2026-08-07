@@ -9,6 +9,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { logger } from './logger';
+import { escapeRegex } from './regex-escape';
 
 export interface IterationLogEntry {
   iteration: number;
@@ -165,7 +166,7 @@ This log tracks iterative improvements following the custom instructions philoso
     );
 
     // Check if phase section exists (ISS-024: escape regex special chars in phase name)
-    const escapedPhase = phase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escapedPhase = escapeRegex(phase);
     const phaseRegex = new RegExp(`## ${escapedPhase}\\n`, 'i');
 
     if (phaseRegex.test(content)) {
