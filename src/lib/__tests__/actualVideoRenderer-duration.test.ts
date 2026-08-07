@@ -176,3 +176,58 @@ describe('ActualVideoRenderer scene duration calculation', () => {
     expect(composition.durationInFrames).toBe(300);
   });
 });
+
+/**
+ * fps honoring: getComposition must override composition.fps and recompute
+ * durationInFrames at the caller-requested rate instead of a hardcoded 30.
+ *
+ * Bug: getComposition used `const fps = 30`, so VideoGenerator.options.fps
+ * (24|30|60) was silently ignored and every render came out at 30fps with a
+ * 30fps frame count — a 60fps/10s request produced 300 frames instead of 600.
+ */
+describe('ActualVideoRenderer caller-requested fps honoring', () => {
+  let renderer: ActualVideoRenderer;
+
+  beforeEach(() => {
+    renderer = new ActualVideoRenderer();
+    jest.clearAllMocks();
+  });
+
+  // 10s of scenes => at fps N, expect ceil(10 * N) frames
+  const tenSecondScenes: SceneGraph[] = [makeScene('s1', 10000)];
+
+  async function getCompositionResult(scenes: SceneGraph[], fps?: number): Promise<{ fps: number; durationInFrames: number }> {
+    try {
+      await (renderer as unknown as {
+        getComposition: (bundle: string, scenes: SceneGraph[], fps?: number) => Promise<{ fps: number; durationInFrames: number }>;
+      }).getComposition('/tmp/mock-bundle', scenes, fps);
+    } catch {
+      // Internal Remotion internals may fail in test env; composition is still mutated
+    }
+    return (selectComposition as jest.Mock).mock.results[0].value;
+  }
+
+  it('overrides composition.fps to 60 and scales durationInFrames (10s => 600 frames)', async () => {
+    const composition = await getCompositionResult(tenSecondScenes, 60);
+    expect(composition.fps).toBe(60); // was hardcoded 30
+    expect(composition.durationInFrames).toBe(600); // was 300 at hardcoded 30fps
+  });
+
+  it('honors 24fps (10s => 240 frames)', async () => {
+    const composition = await getCompositionResult(tenSecondScenes, 24);
+    expect(composition.fps).toBe(24);
+    expect(composition.durationInFrames).toBe(240);
+  });
+
+  it('scales the minimum-1-second floor with fps (0.1s @ 60fps => 60 frames)', async () => {
+    const composition = await getCompositionResult([makeScene('flash', 100)], 60);
+    // ceil(0.1 * 60) = 6 frames, but min-1s floor = 60 frames at 60fps (was hardcoded floor 30)
+    expect(composition.durationInFrames).toBe(60);
+  });
+
+  it('keeps 30fps default when fps is not provided (backward compat)', async () => {
+    const composition = await getCompositionResult(tenSecondScenes);
+    expect(composition.fps).toBe(30);
+    expect(composition.durationInFrames).toBe(300);
+  });
+});

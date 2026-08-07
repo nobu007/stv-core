@@ -19,6 +19,8 @@ export interface ActualVideoRenderOptions {
   audioUrl?: string;
   outputPath?: string;
   quality?: 'low' | 'medium' | 'high';
+  /** Caller-requested frame rate. Honored on the rendered composition; falls back to 30. */
+  fps?: number;
 }
 
 export interface ActualVideoRenderProgress {
@@ -72,7 +74,7 @@ export class ActualVideoRenderer {
         stage: 'preparing',
       });
 
-      const composition = await this.getComposition(bundleLocation, options.scenes);
+      const composition = await this.getComposition(bundleLocation, options.scenes, options.fps);
 
       // ステップ3: 動画レンダリング
       onProgress?.({
@@ -204,10 +206,13 @@ export class ActualVideoRenderer {
 
   /**
    * コンポジション情報を取得
+   * @param fps Caller-requested frame rate (e.g. VideoGenerator.options.fps).
+   *   When omitted, falls back to 30 (the registered composition default).
    */
   private async getComposition(
     bundleLocation: string,
-    scenes: SceneGraph[]
+    scenes: SceneGraph[],
+    fps?: number
   ) {
 
     // シーンから合計時間を計算 — prefer durationMs (always present) over optional startTime/endTime
@@ -215,9 +220,13 @@ export class ActualVideoRenderer {
       ? scenes.reduce((acc, scene) => acc + (scene.durationMs || 10000), 0)
       : 10000;
 
-    const fps = 30;
-    // 最小1秒保証
-    const durationInFrames = Math.max(30, Math.ceil((totalDurationMs / 1000) * fps));
+    // Honor the caller-requested fps instead of hardcoding 30, so 24/60 fps
+    // requests render at the requested rate. Previously a fixed `const fps = 30`
+    // silently dropped VideoGenerator.options.fps — producer-computes-but-
+    // boundary-drops, same class as the quality fix 6937b8b at the prior boundary.
+    const resolvedFps = fps ?? 30;
+    // 最小1秒保証 (1 second = resolvedFps frames, so the floor scales with fps)
+    const durationInFrames = Math.max(resolvedFps, Math.ceil((totalDurationMs / 1000) * resolvedFps));
 
     const inputProps = {
       scenes,
@@ -230,8 +239,9 @@ export class ActualVideoRenderer {
       inputProps,
     });
 
-    // 計算した時間を上書き
+    // 計算した時間とfpsを上書き
     composition.durationInFrames = durationInFrames;
+    composition.fps = resolvedFps;
 
     return composition;
   }
