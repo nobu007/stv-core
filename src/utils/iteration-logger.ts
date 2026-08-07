@@ -124,8 +124,11 @@ This log tracks iterative improvements following the custom instructions philoso
     const transcription = config.transcription as Record<string, unknown> | undefined;
     const analysis = config.analysis as Record<string, unknown> | undefined;
     markdown += `- Transcription Model: ${(transcription?.model as string) || 'default'}\n`;
-    markdown += `- Min Segment Length: ${(analysis?.minSegmentLengthMs as number) || 3000}ms\n`;
-    markdown += `- Max Segment Length: ${(analysis?.maxSegmentLengthMs as number) || 15000}ms\n`;
+    // `??` not `||`: pipeline-orchestrator.ts validates minSegmentLengthMs/maxSegmentLengthMs
+    // as `>= 0`, so 0 is a legitimate "disable segmentation" sentinel that must be reflected
+    // verbatim — using `||` rewrote 0 to the 3000/15000 defaults, masking the caller's intent.
+    markdown += `- Min Segment Length: ${(analysis?.minSegmentLengthMs as number) ?? 3000}ms\n`;
+    markdown += `- Max Segment Length: ${(analysis?.maxSegmentLengthMs as number) ?? 15000}ms\n`;
 
     // Improvements
     if (improvements && improvements.length > 0) {

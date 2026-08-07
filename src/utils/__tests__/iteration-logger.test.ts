@@ -290,4 +290,35 @@ describe('IterationLogger', () => {
     const content = fs.readFileSync(logPath, 'utf-8');
     expect(content).toContain('## v1.2.3');
   });
+
+  // --- Legit-zero preservation (pipeline-orchestrator validates >= 0) ---
+
+  test('appendIteration preserves legit 0 in minSegmentLengthMs (disable segmentation)', async () => {
+    // pipeline-orchestrator.ts validates minSegmentLengthMs >= 0, so 0 is a legitimate
+    // "disable segmentation" sentinel that must not be erased to the 3000ms default.
+    await logger.appendIteration({
+      ...sampleEntry,
+      config: {
+        analysis: { minSegmentLengthMs: 0, maxSegmentLengthMs: 0 },
+      },
+    });
+    const content = fs.readFileSync(logPath, 'utf-8');
+    expect(content).toContain('Min Segment Length: 0ms');
+    expect(content).toContain('Max Segment Length: 0ms');
+    // Negative anchors: the buggy `|| 3000` / `|| 15000` would emit these instead.
+    expect(content).not.toContain('Min Segment Length: 3000ms');
+    expect(content).not.toContain('Max Segment Length: 15000ms');
+  });
+
+  test('appendIteration falls back to 3000/15000 only when segment-length config is undefined', async () => {
+    // `??` (not `||`): when the field is absent, fall back to defaults; when present
+    // (even as 0), the caller-provided value must be reflected verbatim.
+    await logger.appendIteration({
+      ...sampleEntry,
+      config: {},
+    });
+    const content = fs.readFileSync(logPath, 'utf-8');
+    expect(content).toContain('Min Segment Length: 3000ms');
+    expect(content).toContain('Max Segment Length: 15000ms');
+  });
 });
