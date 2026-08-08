@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { computePercentiles, percentileCeil, percentChange, roundTo } from '@/lib/metrics-utils';
+import { computePercentiles, percentileCeil, percentChange, roundTo, heapUsageRatio, heapUsagePercent } from '@/lib/metrics-utils';
 
 /**
  * Canonical single-source percentile behavior lock.
@@ -206,5 +206,59 @@ describe('roundTo (canonical single-source decimal rounding)', () => {
     expect(roundTo(0.99713, 3)).toBe(0.997);
     expect(roundTo(42.367, 2)).toBe(42.37);
     expect(roundTo(12.34, 1)).toBe(12.3);
+  });
+});
+
+/**
+ * Canonical single-source heap-usage ratio/percent lock.
+ *
+ * Three modules (health-check-service, real-time-performance-monitor,
+ * enhanced-error-recovery) previously each inlined the `heapUsed / heapTotal`
+ * division with its `heapTotal > 0` guard — two of them publishing the SAME
+ * `memoryUsagePercent` field (×100) consumed by decision-bearing gates. These
+ * tests lock the ONE shared division+guard and prove percent == ratio × 100, so
+ * any re-introduced local copy that diverges (dropping the guard, or swapping
+ * the percent/fraction scaling) fails loudly here and at the call site.
+ */
+describe('heapUsageRatio / heapUsagePercent (canonical single-source heap ratio)', () => {
+  it('computes the ratio and percent for a normal heap', () => {
+    // 75 MiB used of 100 MiB -> 0.75 ratio, 75% percent.
+    expect(heapUsageRatio(75 * 1024 * 1024, 100 * 1024 * 1024)).toBeCloseTo(0.75, 10);
+    expect(heapUsagePercent(75 * 1024 * 1024, 100 * 1024 * 1024)).toBeCloseTo(75, 10);
+  });
+
+  it('returns 0 when heapTotal is 0 (no division by zero, runtime exposes no API)', () => {
+    // SENTINEL — the distinctive value the un-guarded re-derivation cannot
+    // reproduce. Without the guard `heapUsed / 0` yields `Infinity`, and
+    // `* 100` then yields `Infinity`; the gate `memoryUsagePercent > 85` would
+    // flip to unhealthy/degraded spuriously. The guard returns 0 instead.
+    expect(heapUsageRatio(42, 0)).toBe(0);
+    expect(heapUsagePercent(42, 0)).toBe(0);
+    expect(heapUsageRatio(0, 0)).toBe(0);
+    expect(heapUsagePercent(0, 0)).toBe(0);
+  });
+
+  it('returns 0 for a non-positive total (guard mirrors the original `heapTotal > 0`)', () => {
+    expect(heapUsageRatio(42, -100)).toBe(0);
+    expect(heapUsagePercent(42, -100)).toBe(0);
+  });
+
+  it('does not clamp above 1 — heapUsed can exceed heapTotal under GC pressure', () => {
+    // Both original percent publishers left the result unclamped; preserve that
+    // (a clamp would silently change the 70/90 health thresholds' behavior).
+    expect(heapUsageRatio(150, 100)).toBe(1.5);
+    expect(heapUsagePercent(150, 100)).toBe(150);
+  });
+
+  it('percent is exactly ratio × 100 (scaling lives in exactly one place)', () => {
+    // Behavior-preservation property: the ×100 form MUST equal the ratio form
+    // scaled by 100 for every input — this is what lets the two `memoryUsagePercent`
+    // publishers delegate to `heapUsagePercent` instead of re-inlining the scaling.
+    const cases: Array<[number, number]> = [
+      [0, 0], [42, 0], [50, 200], [200, 100], [1, 3], [0, 99],
+    ];
+    for (const [used, total] of cases) {
+      expect(heapUsagePercent(used, total)).toBeCloseTo(heapUsageRatio(used, total) * 100, 10);
+    }
   });
 });

@@ -133,3 +133,49 @@ export function roundTo(value: number, decimals: number): number {
   const factor = 10 ** decimals;
   return Math.round(value * factor) / factor;
 }
+
+/**
+ * Heap-usage RATIO: `heapUsed / heapTotal`, guarded against a non-positive
+ * total. Returns 0 when `heapTotal <= 0` (a runtime that exposes no memory API
+ * reports `heapTotal: 0`, and the ratio is undefined at 0). `heapUsed` may
+ * exceed `heapTotal` under GC pressure, so the result is unclamped above 1.
+ *
+ * Why this exists: the `heapUsed / heapTotal` division (with its
+ * `heapTotal > 0` guard) was previously inlined — verbatim, with the SAME guard
+ * — in three modules:
+ * - `monitoring/health-check-service.ts`        — published as `memoryUsagePercent` (×100)
+ * - `monitoring/real-time-performance-monitor.ts` — published as `memoryUsagePercent` (×100)
+ * - `quality/enhanced-error-recovery.ts`         — published as `memoryPressure` (fraction)
+ *
+ * All three derive from the identical division+guard, but two of them feed the
+ * SAME `memoryUsagePercent` field consumed by decision-bearing gates (the
+ * healthy/degraded/unhealthy status at the 70/90 thresholds and the
+ * `adaptive-quality-gates` deployment-readiness gate), and the third feeds the
+ * recovery load-metrics `memoryPressure`. Three independent copies of the
+ * division can silently drift — e.g. one dropping the zero-guard and emitting
+ * `NaN` when `heapTotal` is 0, or switching the guard to `>=` — and the
+ * published fields would then disagree about identical memory. One canonical
+ * ratio guarantees the division+guard is identical everywhere; `heapUsagePercent`
+ * below is its ×100 form so percent callers don't re-inline the scaling either.
+ *
+ * Callers keep their own control flow (status thresholds, rounding); only the
+ * ratio delegates here.
+ *
+ * @param heapUsed  used heap in bytes.
+ * @param heapTotal total heap in bytes.
+ * @returns `heapUsed / heapTotal`, or 0 when `heapTotal <= 0`.
+ */
+export function heapUsageRatio(heapUsed: number, heapTotal: number): number {
+  if (heapTotal <= 0) return 0;
+  return heapUsed / heapTotal;
+}
+
+/**
+ * Heap-usage PERCENTAGE: {@link heapUsageRatio} scaled to 0-100. Returns 0 when
+ * `heapTotal <= 0`. The ×100 scaling lives here so the two `memoryUsagePercent`
+ * publishers never re-inline the scaling alongside the division. See
+ * {@link heapUsageRatio} for the canonical division+guard.
+ */
+export function heapUsagePercent(heapUsed: number, heapTotal: number): number {
+  return heapUsageRatio(heapUsed, heapTotal) * 100;
+}
