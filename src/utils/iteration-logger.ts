@@ -10,6 +10,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { logger } from './logger';
 import { escapeRegex } from './regex-escape';
+import { bytesToMb } from '@/lib/metrics-utils';
 import { DEFAULT_MIN_SEGMENT_LENGTH_MS, DEFAULT_MAX_SEGMENT_LENGTH_MS } from '@/analysis';
 
 export interface IterationLogEntry {
@@ -117,7 +118,7 @@ This log tracks iterative improvements following the custom instructions philoso
     markdown += `- Success Rate: ${(metrics.successRate * 100).toFixed(1)}%\n`;
 
     if (metrics.memoryUsage) {
-      markdown += `- Memory Usage: ${(metrics.memoryUsage / 1024 / 1024).toFixed(2)}MB\n`;
+      markdown += `- Memory Usage: ${bytesToMb(metrics.memoryUsage).toFixed(2)}MB\n`;
     }
 
     // Configuration (simplified)

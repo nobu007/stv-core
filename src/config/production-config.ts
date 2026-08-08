@@ -6,6 +6,7 @@
 
 import { logger } from '@/utils/logger';
 import { safeLoadFromStorage, safeSaveToStorage } from '@/utils/safe-storage';
+import { bytesToMb } from '@/lib/metrics-utils';
 
 export interface ProductionEnvironment {
   name: 'development' | 'staging' | 'production';
@@ -486,7 +487,7 @@ export class ProductionConfigManager {
       // Estimate available memory (browser limitation)
       const memoryInfo = (performance as unknown as { memory?: { jsHeapSizeLimit: number } }).memory;
       const estimatedMemory = memoryInfo ?
-        Math.round(memoryInfo.jsHeapSizeLimit / 1024 / 1024) :
+        Math.round(bytesToMb(memoryInfo.jsHeapSizeLimit)) :
         1024; // Default to 1GB
 
       // Estimate CPU cores

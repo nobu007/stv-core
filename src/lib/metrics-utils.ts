@@ -179,3 +179,30 @@ export function heapUsageRatio(heapUsed: number, heapTotal: number): number {
 export function heapUsagePercent(heapUsed: number, heapTotal: number): number {
   return heapUsageRatio(heapUsed, heapTotal) * 100;
 }
+
+/**
+ * Convert a byte count to binary megabytes (MiB): `bytes / (1024 * 1024)`.
+ *
+ * The `bytes / 1024 / 1024` conversion recurred at 20+ sites across the heap
+ * metric family and the file-/memory-size display layer. R3 centralized the
+ * heap-usage RATIO (`heapUsageRatio`/`heapUsagePercent`) but left the raw MB
+ * conversion re-derived inline beside it — e.g. `health-check-service` and
+ * `real-time-performance-monitor` compute `heapUsedMB`/`heapTotalMB` by hand in
+ * the SAME block that already delegates the ratio. Concentrating the conversion
+ * here guarantees the "1 MB = 1024² bytes" definition lives in exactly one
+ * place; a future site that silently switches to decimal megabytes
+ * (`/ 1000 / 1000`) — or a typo'd single `/ 1024` — can no longer drift past a
+ * reader who assumes every MB in the system agrees.
+ *
+ * This is bit-identical to the inline form: dividing by 1024 is an exact IEEE-754
+ * exponent shift, so `bytes / 1024 / 1024` and `bytes / (1024 * 1024)` produce the
+ * same double for every finite input. Output rounding stays at the call site
+ * (callers compose `roundTo(bytesToMb(x), 2)`), so this never changes a published
+ * value.
+ *
+ * @param bytes  a size in bytes (heap/rss/external, file size, etc.).
+ * @returns `bytes / (1024 * 1024)` — the size in binary megabytes.
+ */
+export function bytesToMb(bytes: number): number {
+  return bytes / (1024 * 1024);
+}
