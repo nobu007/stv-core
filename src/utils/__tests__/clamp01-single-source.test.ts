@@ -34,8 +34,23 @@ describe('clamp01 — no former site re-inlines the formula', () => {
       // NOTE: this Jest build's `expect(value, message)` takes 1 arg only.
       expect(src).toContain("from '@/utils/guards'");
       expect(src).toMatch(/\bclamp01\b/);
-      // A re-inlined bare copy must not remain.
-      expect(src).not.toMatch(/Math\.max\(0,\s*Math\.min\(1,/);
+      // A re-inlined bare copy must not remain — in EITHER operand order. The
+      // canonical clamps `value` to [0,1]; `Math.max(0, Math.min(1, x))` and
+      // `Math.min(1, Math.max(0, x))` are the SAME formula with the outer/inner
+      // calls swapped. A guard that checks only one order (as this previously
+      // did) lets a reversed-order copy survive undetected — which is exactly
+      // how a residual stayed inline at enhanced-zero-overlap-layout.ts after
+      // the original sweep. Both orders are forbidden here.
+      //
+      // Test CODE only: strip `//` line comments and `/* */` block comments
+      // first, so a rationale comment that quotes the formula (e.g. the note
+      // under the call site that explains WHY it delegates) does not itself
+      // match the guard and false-positive.
+      const code = src
+        .replace(/^\s*\/\/.*$/gm, '')
+        .replace(/\/\*[\s\S]*?\*\//g, '');
+      expect(code).not.toMatch(/Math\.max\(0,\s*Math\.min\(1,/);
+      expect(code).not.toMatch(/Math\.min\(1,\s*Math\.max\(0,/);
     });
   }
 });
