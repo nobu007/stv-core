@@ -1,5 +1,6 @@
 /**
- * Shared metrics utilities — single source of truth for percentile computation.
+ * Shared metrics utilities — single source of truth for percentile and
+ * percent-change computation.
  *
  * Previously three metrics collectors (pipeline / http / export) each carried a
  * verbatim copy of `computePercentiles`. Independent copies can silently drift
@@ -7,6 +8,8 @@
  * values for identical sample sets — a latent duplicate-formula hazard.
  * Centralizing here guarantees one canonical floor-rank method across every
  * collector that derives percentiles for health / latency / cost decisions.
+ * The same hazard applied to the percent-change formula (`percentChange` below),
+ * re-derived with drifting denominators across four regression/cost modules.
  */
 
 /** p50 / p95 / p99 percentile triple over a ranked sample. */
@@ -63,4 +66,36 @@ export function percentileCeil(sorted: number[], fraction: number): number {
   if (sorted.length === 0) return 0;
   const index = Math.max(0, Math.ceil(sorted.length * fraction) - 1);
   return sorted[index];
+}
+
+/**
+ * Signed percentage change of `current` relative to `baseline`, using the
+ * canonical formula `((current - baseline) / |baseline|) * 100`. Returns 0
+ * when the baseline is 0 (no meaningful percentage can be computed without a
+ * division by zero).
+ *
+ * Why this exists: the percent-change formula was previously inlined — with
+ * subtly DRIFTING denominators — across four modules that each feed
+ * decision-bearing gates:
+ * - `regression-detector.ts` used `Math.abs(baseline)` (sign-correct for any
+ *   baseline sign);
+ * - `performance-regression-detector.ts`, `cost-efficiency-metrics.ts`, and
+ *   `quality-monitor.ts` used the RAW `baseline` (sign-flips the result for a
+ *   negative baseline, e.g. `(-50 - -100) / -100 = -50` instead of `+50`).
+ *
+ * Every reachable baseline here is non-negative (timings, costs, F1, accuracy),
+ * so the two forms agree today — but a single canonical abs-denominator makes
+ * the helper correct even if a future caller feeds a signed/delta baseline,
+ * and guarantees one definition rather than four drifting copies.
+ *
+ * Callers keep their own control flow (zero-baseline skip / safe-default /
+ * `> 0` guard); only the arithmetic delegates here.
+ *
+ * @param current  the new measurement value.
+ * @param baseline the reference value to compare against.
+ * @returns signed percent change, or 0 when `baseline === 0`.
+ */
+export function percentChange(current: number, baseline: number): number {
+  if (baseline === 0) return 0;
+  return ((current - baseline) / Math.abs(baseline)) * 100;
 }

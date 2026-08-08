@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { computePercentiles, percentileCeil } from '@/lib/metrics-utils';
+import { computePercentiles, percentileCeil, percentChange } from '@/lib/metrics-utils';
 
 /**
  * Canonical single-source percentile behavior lock.
@@ -113,5 +113,43 @@ describe('percentileCeil (canonical single-source ceil-rank)', () => {
     // internal sort that would mask a caller bug.
     const descending = Array.from({ length: 20 }, (_, i) => 19 - i); // 19..0
     expect(percentileCeil(descending, 0.95)).toBe(1); // sorted[18] of the descending array
+  });
+});
+
+/**
+ * Canonical single-source percent-change lock.
+ *
+ * Four modules (regression-detector, performance-regression-detector,
+ * cost-efficiency-metrics, quality-monitor) previously each inlined the
+ * percent-change formula with DRIFTING denominators — one used `Math.abs`,
+ * the other three used the raw baseline. These tests lock the ONE shared
+ * abs-denominator implementation and pin the sentinel value that proves the
+ * raw-denominator re-derivation cannot reproduce it.
+ */
+describe('percentChange (canonical single-source)', () => {
+  it('computes the signed change for a positive baseline', () => {
+    expect(percentChange(150, 100)).toBe(50);
+    expect(percentChange(50, 100)).toBe(-50);
+    expect(percentChange(100, 100)).toBe(0);
+    expect(percentChange(200, 100)).toBe(100);
+  });
+
+  it('returns 0 for a zero baseline (no division by zero)', () => {
+    expect(percentChange(100, 0)).toBe(0);
+    expect(percentChange(0, 0)).toBe(0);
+    expect(percentChange(-50, 0)).toBe(0);
+  });
+
+  it('uses the abs-denominator so a negative baseline is sign-correct', () => {
+    // SENTINEL — the distinctive value the raw-denominator re-derivation cannot
+    // reproduce. For current = -50, baseline = -100:
+    //   canonical (abs): ((-50 - -100) / |-100|) * 100 = (50 / 100) * 100 = +50
+    //   raw (drifted):   ((-50 - -100) / -100)  * 100 = (50 / -100) * 100 = -50  ← sign-flipped
+    // Every reachable baseline here is non-negative, so this only manifests as
+    // a divergence for a signed/delta baseline — but it is exactly the drift
+    // the single canonical helper exists to prevent.
+    expect(percentChange(-50, -100)).toBe(50);
+    expect(percentChange(0, -100)).toBe(100);
+    expect(percentChange(-150, -100)).toBe(-50);
   });
 });
