@@ -71,6 +71,33 @@ export function clampFinite(value: unknown, min: number, max: number): number {
 }
 
 /**
+ * Clamp a number to the canonical [0, 1] confidence/score range.
+ *
+ * This is the single source of truth for `Math.max(0, Math.min(1, x))`, which
+ * was previously inlined — verbatim — at eight sites (llm-service,
+ * semantic-similarity ×2, layout-quality-composite ×2, enhanced-zero-overlap,
+ * LayoutEvaluator, importance-scaler, intelligent-cache) plus a private
+ * `clamp01` on the quality monitor. Delegating to {@link clampFinite} keeps the
+ * EXACT behavior the inline copies had for every finite and ±Infinity input:
+ * `+Infinity → 1`, `-Infinity → 0`, and in-range values unchanged. The one
+ * deliberate improvement is `NaN → 0`: a bare `Math.max(0, Math.min(1, NaN))`
+ * returns `NaN` (NaN propagates through both Math calls), so a NaN
+ * confidence/score previously leaked downstream; here it is sanitized to 0.
+ *
+ * ```ts
+ * clamp01(0.85);       // → 0.85
+ * clamp01(1.5);        // → 1
+ * clamp01(-0.3);       // → 0
+ * clamp01(NaN);        // → 0  (bare Math.max/min would return NaN)
+ * clamp01(Infinity);   // → 1
+ * clamp01(-Infinity);  // → 0
+ * ```
+ */
+export function clamp01(value: number): number {
+  return clampFinite(value, 0, 1);
+}
+
+/**
  * Safely call `.toLocaleString()` on a value that might be null/undefined/NaN.
  *
  * Returns `'0'` (or `defaultValue`) when the input is not a finite number,

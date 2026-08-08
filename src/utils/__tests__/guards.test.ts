@@ -8,6 +8,7 @@ import {
   sanitizeFinite,
   sanitizeDiagramType,
   clampFinite,
+  clamp01,
   safeToLocaleString,
 } from '../guards';
 
@@ -263,6 +264,38 @@ describe('clampFinite', () => {
   it('handles edge boundary values exactly', () => {
     expect(clampFinite(0, 0, 1)).toBe(0);
     expect(clampFinite(1, 0, 1)).toBe(1);
+  });
+});
+
+// ============================================================
+// clamp01 — canonical single-source [0,1] clamp
+// ============================================================
+
+describe('clamp01 (canonical single-source)', () => {
+  it('clamps in-range, above-range, and below-range values', () => {
+    expect(clamp01(0.85)).toBe(0.85);
+    expect(clamp01(1.5)).toBe(1);
+    expect(clamp01(-0.3)).toBe(0);
+    expect(clamp01(0)).toBe(0);
+    expect(clamp01(1)).toBe(1);
+  });
+
+  it('returns 0 for NaN — the sentinel the bare inline copy cannot reproduce', () => {
+    // SENTINEL: a bare `Math.max(0, Math.min(1, NaN))` returns NaN (NaN
+    // propagates through both Math calls), so a NaN score/confidence leaked
+    // downstream at the seven former inline sites. The canonical helper
+    // sanitizes it to 0 — the drift this single-source exists to prevent.
+    expect(clamp01(NaN)).toBe(0);
+    expect(Math.max(0, Math.min(1, NaN))).toBe(NaN); // documents the divergence
+  });
+
+  it('matches the bare inline behavior for ±Infinity', () => {
+    // +Infinity → 1 and -Infinity → 0 are IDENTICAL to the bare
+    // `Math.max(0, Math.min(1, x))` copies, so delegating changes nothing here.
+    expect(clamp01(Infinity)).toBe(1);
+    expect(clamp01(-Infinity)).toBe(0);
+    expect(Math.max(0, Math.min(1, Infinity))).toBe(1);
+    expect(Math.max(0, Math.min(1, -Infinity))).toBe(0);
   });
 });
 
