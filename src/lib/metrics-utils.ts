@@ -9,7 +9,9 @@
  * Centralizing here guarantees one canonical floor-rank method across every
  * collector that derives percentiles for health / latency / cost decisions.
  * The same hazard applied to the percent-change formula (`percentChange` below),
- * re-derived with drifting denominators across four regression/cost modules.
+ * re-derived with drifting denominators across four regression/cost modules,
+ * and to the decimal-rounding formula (`roundTo` below), inlined in three
+ * precision tiers (`*10`/`*100`/`*1000`) across ~30 metric-publishing sites.
  */
 
 /** p50 / p95 / p99 percentile triple over a ranked sample. */
@@ -98,4 +100,36 @@ export function percentileCeil(sorted: number[], fraction: number): number {
 export function percentChange(current: number, baseline: number): number {
   if (baseline === 0) return 0;
   return ((current - baseline) / Math.abs(baseline)) * 100;
+}
+
+/**
+ * Round `value` to `decimals` fractional digits using the canonical
+ * `Math.round(value * 10^decimals) / 10^decimals` formula.
+ *
+ * Why this exists: decimal rounding was previously inlined — verbatim, in THREE
+ * precision tiers (`*10)/10`, `*100)/100`, `*1000)/1000`) — across ~30 call sites
+ * spanning every monitoring/quality/analysis/export layer (hitRate, successRate,
+ * errorRate, cacheHitRate, recoveryRate, heapUsedMB, usagePercent, changePercent,
+ * improvementPercent, …). Independent copies of the SAME arithmetic invite the
+ * precision to drift: a `*1000` site silently degrading to `*100` rounds a 3-dp
+ * metric to 2 dp and is invisible at the call site. The three tiers are one
+ * defect class — retiring only the 3-dp tier while the 1-dp/2-dp siblings survive
+ * is exactly the recurrence this module exists to short-circuit (see
+ * `computePercentiles` / `percentChange` above for the same hazard). One
+ * parameterized function retires all three tiers at once and guarantees
+ * identical rounding everywhere a metric is published.
+ *
+ * Behavior-preserving: this uses the SAME arithmetic the inlined sites used (no
+ * `Number.EPSILON` correction), so output is byte-identical to the previous
+ * per-site rounding — this is a deduplication, not a behavior change. Callers
+ * that need a DISPLAY string must use `.toFixed(decimals)`; this helper returns a
+ * rounded NUMBER.
+ *
+ * @param value    the number to round.
+ * @param decimals number of fractional digits to keep (e.g. `3` → 3 dp).
+ * @returns `value` rounded to `decimals` places.
+ */
+export function roundTo(value: number, decimals: number): number {
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
 }

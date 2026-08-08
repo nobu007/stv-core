@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { computePercentiles, percentileCeil, percentChange } from '@/lib/metrics-utils';
+import { computePercentiles, percentileCeil, percentChange, roundTo } from '@/lib/metrics-utils';
 
 /**
  * Canonical single-source percentile behavior lock.
@@ -151,5 +151,60 @@ describe('percentChange (canonical single-source)', () => {
     expect(percentChange(-50, -100)).toBe(50);
     expect(percentChange(0, -100)).toBe(100);
     expect(percentChange(-150, -100)).toBe(-50);
+  });
+});
+
+/**
+ * Canonical single-source decimal-rounding lock.
+ *
+ * ~30 call sites across every monitoring/quality/analysis/export layer previously
+ * inlined `Math.round(x * 10^d) / 10^d` in THREE precision tiers (1/2/3 dp). These
+ * tests lock the ONE parameterized implementation: it must (a) reproduce the
+ * exact arithmetic the inlined sites used (byte-identical, so deduplication is
+ * behavior-preserving), and (b) collapse all three tiers — a future caller
+ * passing the wrong `decimals` is a single-arg mistake, not a drifted copy.
+ */
+describe('roundTo (canonical single-source decimal rounding)', () => {
+  it('rounds to the requested precision for each tier', () => {
+    // Tiers actually used in production: 1 dp (llm rates), 2 dp (memory/percent),
+    // 3 dp (hit/success/error rates).
+    expect(roundTo(0.66666, 1)).toBe(0.7);
+    expect(roundTo(0.66666, 2)).toBe(0.67);
+    expect(roundTo(0.66666, 3)).toBe(0.667);
+    expect(roundTo(123.4567, 3)).toBe(123.457);
+    expect(roundTo(123.4567, 2)).toBe(123.46);
+  });
+
+  it('is byte-identical to the inlined Math.round(x*10^d)/10^d it replaces', () => {
+    // Behavior-preservation property: for the value/precision pairs the inlined
+    // sites handled, the helper MUST equal the old inline formula exactly — this
+    // is a deduplication, not a rounding-method change. Drives many values across
+    // all three tiers so a hidden divergence (e.g. an added EPSILON correction)
+    // surfaces.
+    const cases: Array<[number, number]> = [
+      [0.837261, 3], [0.5, 3], [0.123999, 3], [0.0005, 3], [12.34567, 3],
+      [78.4219, 2], [0.99, 2], [156.789, 2], [0.004, 2], [33.0, 2],
+      [0.85, 1], [3.14159, 1], [99.95, 1], [0.06, 1], [7.0, 1],
+    ];
+    for (const [value, decimals] of cases) {
+      const factor = 10 ** decimals;
+      const inline = Math.round(value * factor) / factor;
+      expect(roundTo(value, decimals)).toBe(inline);
+    }
+  });
+
+  it('treats decimals=0 as round-to-integer (factor 1)', () => {
+    expect(roundTo(2.5, 0)).toBe(3);
+    expect(roundTo(2.4, 0)).toBe(2);
+    expect(roundTo(123.999, 0)).toBe(124);
+  });
+
+  it('handles the rounded metric values published across layers', () => {
+    // Sentinel cases drawn from real call sites: successRate ~0.9971 -> 3 dp,
+    // heapUsedMB ~42.37 -> 2 dp, improvementPercent ~12.3 -> 1 dp. Pins the
+    // contract the monitoring/quality dashboards depend on.
+    expect(roundTo(0.99713, 3)).toBe(0.997);
+    expect(roundTo(42.367, 2)).toBe(42.37);
+    expect(roundTo(12.34, 1)).toBe(12.3);
   });
 });
