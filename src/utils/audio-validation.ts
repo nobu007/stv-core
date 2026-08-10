@@ -129,9 +129,15 @@ export function validateAudioFileMetadata(meta: AudioFileMetadata): AudioValidat
     );
   }
 
-  // File size checks (optional — skip when size is unknown)
+  // File size checks (optional — skip when size is unknown).
+  // Reject non-finite (Infinity/NaN — reachable from JSON.parse('1e400') at the
+  // API boundary) and negative sizes outright, mirroring the guard already in
+  // validateAudioDuration. A file size can be neither; without this an API
+  // caller can submit {"size": -1e400} or {"size": -100} and pass validation.
   if (meta.size !== undefined) {
-    if (meta.size === 0) {
+    if (!Number.isFinite(meta.size) || meta.size < 0) {
+      errors.push(`Invalid file size for "${meta.name}": ${meta.size}`);
+    } else if (meta.size === 0) {
       errors.push(`Audio file "${meta.name}" is empty (0 bytes)`);
     } else if (meta.size > AUDIO_LIMITS.MAX_FILE_SIZE_BYTES) {
       errors.push(
