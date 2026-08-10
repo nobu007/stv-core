@@ -589,6 +589,40 @@ describe('ProductionConfigManager', () => {
         expect(restored as number).toBeGreaterThan(0);
       },
     );
+
+    // ── Finiteness tail (09y deferred sub-class): raw localStorage payload injection ──
+    // monitoring/export were previously shape-only-validated (is-object), so a poisoned
+    // payload survived JSON.parse and reached getConfig() — and round-trips back to
+    // localStorage via ProductionDashboard.updateConfig. Injecting the raw string
+    // exercises the real parse path end-to-end; the restored value must always fall
+    // back to a finite, positive default. Same chokepoint (safe-storage) as 09y.
+    it.each([
+      ['{"performance":{"memoryLimit":1e400}}', ['performance', 'memoryLimit']],
+      ['{"performance":{"memoryLimit":-512}}', ['performance', 'memoryLimit']],
+      ['{"monitoring":{"metricsCollectionInterval":1e400}}', ['monitoring', 'metricsCollectionInterval']],
+      ['{"monitoring":{"metricsCollectionInterval":-5}}', ['monitoring', 'metricsCollectionInterval']],
+      ['{"monitoring":{"alertThresholds":{"errorRate":1e400}}}', ['monitoring', 'alertThresholds', 'errorRate']],
+      ['{"monitoring":{"alertThresholds":{"responseTime":1e400}}}', ['monitoring', 'alertThresholds', 'responseTime']],
+      ['{"monitoring":{"alertThresholds":{"memoryUsage":1e400}}}', ['monitoring', 'alertThresholds', 'memoryUsage']],
+      ['{"export":{"concurrentExports":1e400}}', ['export', 'concurrentExports']],
+      ['{"export":{"concurrentExports":-1}}', ['export', 'concurrentExports']],
+    ] as const)(
+      'rejects non-finite/non-positive inner numeric from raw payload (restores finite default)',
+      (rawPayload, path) => {
+        mockStorage['production-config-overrides'] = rawPayload;
+        const mgr = new ProductionConfigManager();
+        expect(logger.warn).toHaveBeenCalledWith(
+          expect.stringContaining('failed type validation'),
+        );
+        expect(localStorageMock.removeItem).toHaveBeenCalledWith('production-config-overrides');
+        const restored = (path as readonly string[]).reduce<unknown>(
+          (o, k) => (o as Record<string, unknown>)[k],
+          mgr.getConfig(),
+        );
+        expect(Number.isFinite(restored)).toBe(true);
+        expect(restored as number).toBeGreaterThan(0);
+      },
+    );
   });
 
   // ── Direct validateConfigOverrides boolean-return tests ──
@@ -693,6 +727,63 @@ describe('ProductionConfigManager', () => {
         ).toBe(false);
       },
     );
+
+    // ── Finiteness tail (09y deferred sub-class): monitoring / export / memoryLimit ──
+    // These sections were previously shape-only (is-object), so Infinity/NaN/negative
+    // inner numerics passed the guard and flowed into getConfig(). Same isPositiveFiniteNumber
+    // predicate, same chokepoint — closes the remaining tail of the restore-finiteness class.
+    it.each([
+      ['performance.memoryLimit', Infinity],
+      ['performance.memoryLimit', NaN],
+      ['performance.memoryLimit', -1],
+      ['performance.memoryLimit', 0],
+      ['monitoring.metricsCollectionInterval', Infinity],
+      ['monitoring.metricsCollectionInterval', NaN],
+      ['monitoring.metricsCollectionInterval', -100],
+      ['monitoring.metricsCollectionInterval', 0],
+      ['monitoring.alertThresholds.errorRate', Infinity],
+      ['monitoring.alertThresholds.errorRate', NaN],
+      ['monitoring.alertThresholds.errorRate', -0.1],
+      ['monitoring.alertThresholds.errorRate', 0],
+      ['monitoring.alertThresholds.responseTime', Infinity],
+      ['monitoring.alertThresholds.responseTime', NaN],
+      ['monitoring.alertThresholds.responseTime', -1],
+      ['monitoring.alertThresholds.responseTime', 0],
+      ['monitoring.alertThresholds.memoryUsage', Infinity],
+      ['monitoring.alertThresholds.memoryUsage', NaN],
+      ['monitoring.alertThresholds.memoryUsage', -0.5],
+      ['monitoring.alertThresholds.memoryUsage', 0],
+      ['export.concurrentExports', Infinity],
+      ['export.concurrentExports', NaN],
+      ['export.concurrentExports', -1],
+      ['export.concurrentExports', 0],
+    ] as const)(
+      'returns false for %s = %p (non-finite or non-positive)',
+      (path, value) => {
+        const obj: Record<string, unknown> = {};
+        path.split('.').reduce<Record<string, unknown>>((node, key, i, keys) => {
+          if (i === keys.length - 1) {
+            node[key] = value;
+            return node;
+          }
+          const next: Record<string, unknown> = {};
+          node[key] = next;
+          return next;
+        }, obj);
+        expect(ProductionConfigManager.validateConfigOverrides(obj)).toBe(false);
+      },
+    );
+
+    it('returns true for valid monitoring + export + memoryLimit numerics', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({
+        performance: { memoryLimit: 1024 },
+        monitoring: {
+          metricsCollectionInterval: 5000,
+          alertThresholds: { errorRate: 0.1, responseTime: 5000, memoryUsage: 0.8 },
+        },
+        export: { concurrentExports: 2 },
+      })).toBe(true);
+    });
 
     it('returns false for monitoring as number', () => {
       expect(ProductionConfigManager.validateConfigOverrides({ monitoring: 42 })).toBe(false);

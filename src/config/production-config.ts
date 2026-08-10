@@ -333,18 +333,33 @@ export class ProductionConfigManager {
       if ('maxConcurrentJobs' in perf && !isPositiveFiniteNumber(perf.maxConcurrentJobs)) return false;
       if ('timeoutMs' in perf && !isPositiveFiniteNumber(perf.timeoutMs)) return false;
       if ('maxFileSize' in perf && !isPositiveFiniteNumber(perf.maxFileSize)) return false;
+      if ('memoryLimit' in perf && !isPositiveFiniteNumber(perf.memoryLimit)) return false;
     }
 
     // Check monitoring shape if present
     if ('monitoring' in parsed) {
       const m = parsed.monitoring;
       if (m === null || typeof m !== 'object' || Array.isArray(m)) return false;
+      const mon = m as Record<string, unknown>;
+      if ('metricsCollectionInterval' in mon && !isPositiveFiniteNumber(mon.metricsCollectionInterval)) return false;
+      // alertThresholds are magnitude/ratio numerics that drive alerting decisions and
+      // round-trip through ProductionDashboard; validate finiteness per field (not just shape).
+      if ('alertThresholds' in mon) {
+        const at = mon.alertThresholds;
+        if (at === null || typeof at !== 'object' || Array.isArray(at)) return false;
+        const thresholds = at as Record<string, unknown>;
+        if ('errorRate' in thresholds && !isPositiveFiniteNumber(thresholds.errorRate)) return false;
+        if ('responseTime' in thresholds && !isPositiveFiniteNumber(thresholds.responseTime)) return false;
+        if ('memoryUsage' in thresholds && !isPositiveFiniteNumber(thresholds.memoryUsage)) return false;
+      }
     }
 
     // Check export shape if present
     if ('export' in parsed) {
       const e = parsed.export;
       if (e === null || typeof e !== 'object' || Array.isArray(e)) return false;
+      const exp = e as Record<string, unknown>;
+      if ('concurrentExports' in exp && !isPositiveFiniteNumber(exp.concurrentExports)) return false;
     }
 
     return true;
