@@ -360,6 +360,26 @@ export class ProductionConfigManager {
       if (e === null || typeof e !== 'object' || Array.isArray(e)) return false;
       const exp = e as Record<string, unknown>;
       if ('concurrentExports' in exp && !isPositiveFiniteNumber(exp.concurrentExports)) return false;
+      // qualityPresets inner numerics (width/height/fps/quality) are magnitude fields that
+      // round-trip through ProductionDashboard.updateConfig and drive canvas dimensions, frame
+      // counts, and pixel allocations downstream (production-exporter: `sceneDuration * fps`
+      // → frame loop, `width * height` → pixel buffer). Infinity/NaN/≤0 survive a bare
+      // `typeof === 'number'` (JSON.parse overflow of a 1e400 literal yields Infinity) and
+      // would cause infinite-frame loops / NaN propagation / OOM. Same isPositiveFiniteNumber
+      // predicate + chokepoint as the scalar finiteness tail (09y/09z); closes the last
+      // array-of-object numeric in the persisted config.
+      if ('qualityPresets' in exp) {
+        const qp = exp.qualityPresets;
+        if (!Array.isArray(qp)) return false;
+        for (const preset of qp) {
+          if (preset === null || typeof preset !== 'object' || Array.isArray(preset)) return false;
+          const p = preset as Record<string, unknown>;
+          if ('width' in p && !isPositiveFiniteNumber(p.width)) return false;
+          if ('height' in p && !isPositiveFiniteNumber(p.height)) return false;
+          if ('fps' in p && !isPositiveFiniteNumber(p.fps)) return false;
+          if ('quality' in p && !isPositiveFiniteNumber(p.quality)) return false;
+        }
+      }
     }
 
     return true;

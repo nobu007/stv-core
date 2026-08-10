@@ -623,6 +623,38 @@ describe('ProductionConfigManager', () => {
         expect(restored as number).toBeGreaterThan(0);
       },
     );
+
+    // ── Finiteness tail (qualityPresets inner numerics): raw localStorage payload ──
+    // qualityPresets is the only remaining array-of-object numeric shape in the
+    // persisted config; its width/height/fps/quality round-trip through
+    // ProductionDashboard.updateConfig and drive canvas dims, frame counts, and
+    // pixel allocations in production-exporter (Infinity → infinite-frame loop /
+    // OOM, NaN → NaN propagation). A poisoned inner numeric (e.g. 1e400 overflow
+    // → Infinity) must be rejected at the safe-storage chokepoint so it never
+    // reaches getConfig() nor persists back to localStorage. Exercises the real
+    // parse path end-to-end. Same chokepoint + class as 09y/09z.
+    it.each([
+      '{"export":{"qualityPresets":[{"name":"p","width":1e400,"height":720,"fps":30,"bitrate":"1M","quality":8,"targetUse":"u"}]}}',
+      '{"export":{"qualityPresets":[{"name":"p","width":1280,"height":720,"fps":1e400,"bitrate":"1M","quality":8,"targetUse":"u"}]}}',
+      '{"export":{"qualityPresets":[{"name":"p","width":1280,"height":720,"fps":30,"bitrate":"1M","quality":-5,"targetUse":"u"}]}}',
+    ] as const)(
+      'rejects non-finite/non-positive qualityPresets numeric from raw payload (restores finite defaults)',
+      (rawPayload) => {
+        mockStorage['production-config-overrides'] = rawPayload;
+        const mgr = new ProductionConfigManager();
+        expect(logger.warn).toHaveBeenCalledWith(
+          expect.stringContaining('failed type validation'),
+        );
+        expect(localStorageMock.removeItem).toHaveBeenCalledWith('production-config-overrides');
+        // Restored presets are the env defaults — every inner numeric finite & positive.
+        for (const p of mgr.getConfig().export.qualityPresets) {
+          expect(Number.isFinite(p.width) && p.width > 0).toBe(true);
+          expect(Number.isFinite(p.height) && p.height > 0).toBe(true);
+          expect(Number.isFinite(p.fps) && p.fps > 0).toBe(true);
+          expect(Number.isFinite(p.quality) && p.quality > 0).toBe(true);
+        }
+      },
+    );
   });
 
   // ── Direct validateConfigOverrides boolean-return tests ──
@@ -782,6 +814,64 @@ describe('ProductionConfigManager', () => {
           alertThresholds: { errorRate: 0.1, responseTime: 5000, memoryUsage: 0.8 },
         },
         export: { concurrentExports: 2 },
+      })).toBe(true);
+    });
+
+    // ── Finiteness tail (qualityPresets inner numerics): array-of-object restore ──
+    // qualityPresets is the only remaining array-of-object numeric in the persisted
+    // config; its width/height/fps/quality drive canvas dims, frame counts, and pixel
+    // allocations in production-exporter (Infinity → infinite-frame loop / OOM).
+    it.each([
+      ['width', Infinity],
+      ['width', NaN],
+      ['width', -100],
+      ['width', 0],
+      ['height', Infinity],
+      ['height', NaN],
+      ['height', -1],
+      ['height', 0],
+      ['fps', Infinity],
+      ['fps', NaN],
+      ['fps', -30],
+      ['fps', 0],
+      ['quality', Infinity],
+      ['quality', NaN],
+      ['quality', -5],
+      ['quality', 0],
+    ] as const)(
+      'returns false for export.qualityPresets[].%s = %p (non-finite or non-positive)',
+      (field, value) => {
+        const preset = {
+          name: 'p', width: 1280, height: 720, fps: 30,
+          bitrate: '1M', quality: 8, targetUse: 'u',
+          [field]: value,
+        };
+        expect(
+          ProductionConfigManager.validateConfigOverrides({ export: { qualityPresets: [preset] } }),
+        ).toBe(false);
+      },
+    );
+
+    it('returns false for export.qualityPresets as non-array', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({
+        export: { qualityPresets: { width: 1280 } as unknown as unknown[] },
+      })).toBe(false);
+    });
+
+    it('returns false for export.qualityPresets element as non-object', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({
+        export: { qualityPresets: ['not-a-preset'] },
+      })).toBe(false);
+    });
+
+    it('returns true for export.qualityPresets with all-finite-positive numerics', () => {
+      expect(ProductionConfigManager.validateConfigOverrides({
+        export: {
+          qualityPresets: [{
+            name: 'HD', width: 1280, height: 720, fps: 30,
+            bitrate: '3M', quality: 8, targetUse: 'web',
+          }],
+        },
       })).toBe(true);
     });
 
