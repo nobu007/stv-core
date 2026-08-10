@@ -68,6 +68,18 @@ export interface QualityPreset {
   targetUse: string;
 }
 
+/**
+ * A value that is a real, usable positive magnitude.
+ *
+ * `typeof === 'number'` alone admits `Infinity` (reachable from localStorage via
+ * `JSON.parse` overflow of a literal like `1e400`), `-Infinity`, `NaN`, zero, and
+ * negatives — all nonsensical for magnitude-style config fields (concurrency, size,
+ * timeout) persisted to localStorage. Centralising the predicate keeps the operator
+ * (+, finite, positivity) in one definition rather than re-deriving it per field.
+ */
+const isPositiveFiniteNumber = (v: unknown): boolean =>
+  typeof v === 'number' && Number.isFinite(v) && v > 0;
+
 export class ProductionConfigManager {
   private currentEnv: ProductionEnvironment;
   private configOverrides: Partial<ProductionEnvironment> = {};
@@ -317,9 +329,10 @@ export class ProductionConfigManager {
     if ('performance' in parsed) {
       const p = parsed.performance;
       if (p === null || typeof p !== 'object' || Array.isArray(p)) return false;
-      if ('maxConcurrentJobs' in p && typeof (p as Record<string, unknown>).maxConcurrentJobs !== 'number') return false;
-      if ('timeoutMs' in p && typeof (p as Record<string, unknown>).timeoutMs !== 'number') return false;
-      if ('maxFileSize' in p && typeof (p as Record<string, unknown>).maxFileSize !== 'number') return false;
+      const perf = p as Record<string, unknown>;
+      if ('maxConcurrentJobs' in perf && !isPositiveFiniteNumber(perf.maxConcurrentJobs)) return false;
+      if ('timeoutMs' in perf && !isPositiveFiniteNumber(perf.timeoutMs)) return false;
+      if ('maxFileSize' in perf && !isPositiveFiniteNumber(perf.maxFileSize)) return false;
     }
 
     // Check monitoring shape if present

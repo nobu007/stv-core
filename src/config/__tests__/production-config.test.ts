@@ -559,6 +559,36 @@ describe('ProductionConfigManager', () => {
       );
       expect(localStorageMock.removeItem).toHaveBeenCalledWith('production-config-overrides');
     });
+
+    // ── Finiteness: Infinity/NaN/negative/zero must NOT survive localStorage restore ──
+    // typeof === 'number' alone admits Infinity (JSON.parse overflow of 1e400) and
+    // negatives straight into getConfig(), which then feed production-exporter
+    // (maxConcurrentJobs) and parallel-layout-executor (timeoutMs). The raw payloads
+    // below are injected as literal localStorage strings to exercise the real parse path.
+    it.each([
+      ['{"performance":{"maxConcurrentJobs":1e400}}', 'maxConcurrentJobs'],
+      ['{"performance":{"timeoutMs":1e400}}', 'timeoutMs'],
+      ['{"performance":{"maxFileSize":1e400}}', 'maxFileSize'],
+      ['{"performance":{"maxConcurrentJobs":-5}}', 'maxConcurrentJobs'],
+      ['{"performance":{"timeoutMs":-500}}', 'timeoutMs'],
+      ['{"performance":{"maxFileSize":-1}}', 'maxFileSize'],
+    ] as const)(
+      'rejects non-finite/non-positive %s from raw localStorage payload (falls back to default)',
+      (rawPayload, field) => {
+        mockStorage['production-config-overrides'] = rawPayload;
+        const mgr = new ProductionConfigManager();
+        // Corruption is surfaced through safe-storage → reportCorruption → logger.warn
+        expect(logger.warn).toHaveBeenCalledWith(
+          expect.stringContaining('failed type validation'),
+        );
+        expect(localStorageMock.removeItem).toHaveBeenCalledWith('production-config-overrides');
+        // Critical invariant: restored value is ALWAYS finite & positive, never
+        // Infinity/-Infinity/NaN/negative, even under overflow or sign corruption.
+        const restored = (mgr.getConfig().performance as Record<string, unknown>)[field];
+        expect(Number.isFinite(restored)).toBe(true);
+        expect(restored as number).toBeGreaterThan(0);
+      },
+    );
   });
 
   // ── Direct validateConfigOverrides boolean-return tests ──
@@ -636,6 +666,33 @@ describe('ProductionConfigManager', () => {
         performance: { maxConcurrentJobs: 4, timeoutMs: 30000, maxFileSize: 100 },
       })).toBe(true);
     });
+
+    // ── Finiteness: typeof === 'number' is insufficient ──
+    // Infinity/NaN/≤0 must be rejected for magnitude-style numeric fields, else they
+    // pass the type-guard and get applied as production config. (NaN is not reachable
+    // via JSON.parse of valid JSON, but is defended against at the predicate contract.)
+    it.each([
+      ['maxConcurrentJobs', Infinity],
+      ['maxConcurrentJobs', -Infinity],
+      ['maxConcurrentJobs', NaN],
+      ['maxConcurrentJobs', -1],
+      ['maxConcurrentJobs', 0],
+      ['timeoutMs', Infinity],
+      ['timeoutMs', NaN],
+      ['timeoutMs', -1],
+      ['timeoutMs', 0],
+      ['maxFileSize', Infinity],
+      ['maxFileSize', NaN],
+      ['maxFileSize', -1],
+      ['maxFileSize', 0],
+    ] as const)(
+      'returns false for performance.%s = %p (non-finite or non-positive)',
+      (field, value) => {
+        expect(
+          ProductionConfigManager.validateConfigOverrides({ performance: { [field]: value } }),
+        ).toBe(false);
+      },
+    );
 
     it('returns false for monitoring as number', () => {
       expect(ProductionConfigManager.validateConfigOverrides({ monitoring: 42 })).toBe(false);
