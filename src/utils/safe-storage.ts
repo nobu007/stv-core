@@ -99,3 +99,44 @@ export function safeSaveToStorage(
     return false;
   }
 }
+
+/**
+ * Safely remove a key from localStorage.
+ *
+ * Wraps the common pattern:
+ *   1. localStorage.removeItem(key)
+ *   2. On any failure: reportCorruption + return false
+ *
+ * Why this chokepoint exists. Raw `localStorage.removeItem` in production code
+ * mirrors the same hazard the load/save siblings close: in private browsing
+ * or restricted environments the storage object itself can throw on access
+ * (Safari historically, locked-down iframes, some SSR fallbacks). Each raw
+ * callsite must re-implement the try/catch + corruption-report pair, which is
+ * exactly the cross-file drift that previously caused silent state loss and
+ * stack-trace noise in the console. Routing the call through this helper
+ * collapses that drift to one chokepoint.
+ *
+ * Used by:
+ *   - `src/config/production-config.ts` — `resetConfig()` previously wrapped
+ *     `localStorage.removeItem('production-config-overrides')` in its own
+ *     try/catch + logger.warn. Routing it through here removes the duplicated
+ *     boilerplate and surfaces the failure as a corruption report (the same
+ *     observability the load/save helpers already emit).
+ *
+ * @param key     localStorage key
+ * @param source  Logical source identifier for corruption reports
+ * @returns       `true` on success, `false` on failure (storage threw)
+ */
+export function safeRemoveFromStorage(
+  key: string,
+  source: string,
+): boolean {
+  try {
+    localStorage.removeItem(key);
+    return true;
+  } catch {
+    // localStorage may throw (private mode, restricted env, etc.)
+    reportCorruption(source, `localStorage "${key}" remove failed (storage access denied)`);
+    return false;
+  }
+}

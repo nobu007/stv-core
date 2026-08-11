@@ -5,7 +5,7 @@
  */
 
 import { logger } from '@/utils/logger';
-import { safeLoadFromStorage, safeSaveToStorage } from '@/utils/safe-storage';
+import { safeLoadFromStorage, safeRemoveFromStorage, safeSaveToStorage } from '@/utils/safe-storage';
 import { bytesToMb } from '@/lib/metrics-utils';
 
 export interface ProductionEnvironment {
@@ -463,12 +463,12 @@ export class ProductionConfigManager {
    */
   resetConfig(): void {
     this.configOverrides = {};
-    try {
-      localStorage.removeItem('production-config-overrides');
-    } catch (error) {
-      // localStorage may be unavailable in private browsing or restricted environments
-      logger.warn('Failed to clear configuration overrides:', error);
-    }
+    // Route through the chokepoint so private-mode / restricted-env failures
+    // surface as a corruption report (consistent with load/save) instead of
+    // a duplicated try/catch + logger.warn here. If the chokepoint is ever
+    // weakened, the structural guard at tests/guards/raw-localstorage-remove-
+    // chokepoint.test.ts (TC-315) fires.
+    safeRemoveFromStorage('production-config-overrides', 'ProductionConfigManager.resetConfig');
   }
 
   /**
