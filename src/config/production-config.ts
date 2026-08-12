@@ -81,6 +81,29 @@ const isPositiveFiniteNumber = (v: unknown): boolean =>
   typeof v === 'number' && Number.isFinite(v) && v > 0;
 
 /**
+ * The boolean twin of `isPositiveFiniteNumber` (REQ-054) and `isAllowedEnumValue`
+ * (REQ-055) for the production-config persist→round-trip boundary.
+ *
+ * `validateConfigOverrides` shape-checks each nested section object
+ * (`features`, `performance`, `monitoring`, `export`) but a bare shape check does
+ * not constrain a member's type. A tampered or corrupted localStorage payload can
+ * carry any JSON value, and a non-boolean such as
+ * `features: { realTimeProcessing: "yes" }` or `performance: { enableCompression: 1 }`
+ * passes the shape gate exactly the way `Infinity` passes `typeof === 'number'` —
+ * then crosses the restore boundary. ProductionDashboard runs a read-modify-write
+ * cycle over these fields (`getConfig()` → render in `<Switch checked={value}>` →
+ * `handleConfigUpdate` → `updateConfig` → `safeSaveToStorage`): a non-boolean
+ * renders as an inconsistent toggle state AND is re-persisted on the next save,
+ * propagating the corruption. Routing every boolean member through this one
+ * predicate at the chokepoint rejects malformed values at restore time and lets the
+ * closed-set anchor (`production-config-boolean-exhaustive.test.ts`, REQ-057) prove
+ * — by reading the interface source — that every declared boolean field is
+ * validated and no check is silently un-enforced. Completes the scalar-type
+ * coverage of the boundary (numeric ∪ enum ∪ boolean).
+ */
+const isBooleanValue = (v: unknown): boolean => typeof v === 'boolean';
+
+/**
  * The closed set of string-literal-union (enum) fields exposed on the persisted
  * `ProductionEnvironment`, each mapped to its declared set of allowed literals.
  *
@@ -352,6 +375,17 @@ export class ProductionConfigManager {
     if ('features' in parsed) {
       const f = parsed.features;
       if (f === null || typeof f !== 'object' || Array.isArray(f)) return false;
+      const feat = f as Record<string, unknown>;
+      // Boolean members (REQ-057): a bare shape check admits a non-boolean
+      // (`realTimeProcessing: "yes"`) which then round-trips into the dashboard's
+      // controlled inputs and gets re-persisted on save.
+      if ('realTimeProcessing' in feat && !isBooleanValue(feat.realTimeProcessing)) return false;
+      if ('advancedAnalytics' in feat && !isBooleanValue(feat.advancedAnalytics)) return false;
+      if ('multiLanguageSupport' in feat && !isBooleanValue(feat.multiLanguageSupport)) return false;
+      if ('batchProcessing' in feat && !isBooleanValue(feat.batchProcessing)) return false;
+      if ('collaborativeEditing' in feat && !isBooleanValue(feat.collaborativeEditing)) return false;
+      if ('enterpriseFeatures' in feat && !isBooleanValue(feat.enterpriseFeatures)) return false;
+      if ('experimentalFeatures' in feat && !isBooleanValue(feat.experimentalFeatures)) return false;
     }
 
     // Check performance shape if present
@@ -365,6 +399,7 @@ export class ProductionConfigManager {
       if ('memoryLimit' in perf && !isPositiveFiniteNumber(perf.memoryLimit)) return false;
       if ('cacheStrategy' in perf && !isAllowedEnumValue(perf.cacheStrategy, PROD_CONFIG_ENUM_FIELDS.cacheStrategy)) return false;
       if ('optimizationLevel' in perf && !isAllowedEnumValue(perf.optimizationLevel, PROD_CONFIG_ENUM_FIELDS.optimizationLevel)) return false;
+      if ('enableCompression' in perf && !isBooleanValue(perf.enableCompression)) return false;
     }
 
     // Check monitoring shape if present
@@ -372,6 +407,9 @@ export class ProductionConfigManager {
       const m = parsed.monitoring;
       if (m === null || typeof m !== 'object' || Array.isArray(m)) return false;
       const mon = m as Record<string, unknown>;
+      if ('enableErrorTracking' in mon && !isBooleanValue(mon.enableErrorTracking)) return false;
+      if ('enablePerformanceMonitoring' in mon && !isBooleanValue(mon.enablePerformanceMonitoring)) return false;
+      if ('enableUserAnalytics' in mon && !isBooleanValue(mon.enableUserAnalytics)) return false;
       if ('metricsCollectionInterval' in mon && !isPositiveFiniteNumber(mon.metricsCollectionInterval)) return false;
       if ('logLevel' in mon && !isAllowedEnumValue(mon.logLevel, PROD_CONFIG_ENUM_FIELDS.logLevel)) return false;
       // alertThresholds are magnitude/ratio numerics that drive alerting decisions and
@@ -393,6 +431,8 @@ export class ProductionConfigManager {
       const exp = e as Record<string, unknown>;
       if ('concurrentExports' in exp && !isPositiveFiniteNumber(exp.concurrentExports)) return false;
       if ('defaultFormat' in exp && !isAllowedEnumValue(exp.defaultFormat, PROD_CONFIG_ENUM_FIELDS.defaultFormat)) return false;
+      if ('compressionEnabled' in exp && !isBooleanValue(exp.compressionEnabled)) return false;
+      if ('watermarkEnabled' in exp && !isBooleanValue(exp.watermarkEnabled)) return false;
       // qualityPresets inner numerics (width/height/fps/quality) are magnitude fields that
       // round-trip through ProductionDashboard.updateConfig and drive canvas dimensions, frame
       // counts, and pixel allocations downstream (production-exporter: `sceneDuration * fps`
