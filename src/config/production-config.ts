@@ -80,6 +80,35 @@ export interface QualityPreset {
 const isPositiveFiniteNumber = (v: unknown): boolean =>
   typeof v === 'number' && Number.isFinite(v) && v > 0;
 
+/**
+ * The closed set of string-literal-union (enum) fields exposed on the persisted
+ * `ProductionEnvironment`, each mapped to its declared set of allowed literals.
+ *
+ * Single source of truth, read straight from the interface declarations above.
+ * localStorage survives a `JSON.parse` round-trip, and a malicious or corrupted
+ * payload can carry any string. `typeof === 'string'` admits an out-of-set value
+ * (e.g. `logLevel: "trace"`, `defaultFormat: "exe"`, `name: "attacker"`) exactly
+ * the way `typeof === 'number'` admits `Infinity` — so the value crosses the
+ * restore boundary and reaches downstream consumers (ProductionDashboard,
+ * logger setup, export format selection) that assume the enum invariant. Routing
+ * every enum field through this one roster lets `validateConfigOverrides` reject
+ * out-of-set values at the chokepoint, and lets the closed-set anchor
+ * (`production-config-enum-exhaustive.test.ts`) prove — by reading this object
+ * and the interface source — that every declared literal-union field is validated
+ * and no roster entry is silently un-enforced. The numeric finiteness tail of the
+ * same lifecycle is anchored by REQ-054; this is its enum twin.
+ */
+const PROD_CONFIG_ENUM_FIELDS: Readonly<Record<string, readonly string[]>> = {
+  name: ['development', 'staging', 'production'],
+  cacheStrategy: ['memory', 'redis', 'hybrid'],
+  optimizationLevel: ['basic', 'standard', 'aggressive'],
+  logLevel: ['error', 'warn', 'info', 'debug'],
+  defaultFormat: ['mp4', 'webm', 'gif'],
+};
+
+const isAllowedEnumValue = (value: unknown, allowed: readonly string[]): boolean =>
+  typeof value === 'string' && allowed.includes(value);
+
 export class ProductionConfigManager {
   private currentEnv: ProductionEnvironment;
   private configOverrides: Partial<ProductionEnvironment> = {};
@@ -316,8 +345,8 @@ export class ProductionConfigManager {
     // Check apiBaseUrl type if present
     if ('apiBaseUrl' in parsed && typeof parsed.apiBaseUrl !== 'string') return false;
 
-    // Check name type if present
-    if ('name' in parsed && typeof parsed.name !== 'string') return false;
+    // Check name type + declared environment set if present
+    if ('name' in parsed && !isAllowedEnumValue(parsed.name, PROD_CONFIG_ENUM_FIELDS.name)) return false;
 
     // Check features shape if present
     if ('features' in parsed) {
@@ -334,6 +363,8 @@ export class ProductionConfigManager {
       if ('timeoutMs' in perf && !isPositiveFiniteNumber(perf.timeoutMs)) return false;
       if ('maxFileSize' in perf && !isPositiveFiniteNumber(perf.maxFileSize)) return false;
       if ('memoryLimit' in perf && !isPositiveFiniteNumber(perf.memoryLimit)) return false;
+      if ('cacheStrategy' in perf && !isAllowedEnumValue(perf.cacheStrategy, PROD_CONFIG_ENUM_FIELDS.cacheStrategy)) return false;
+      if ('optimizationLevel' in perf && !isAllowedEnumValue(perf.optimizationLevel, PROD_CONFIG_ENUM_FIELDS.optimizationLevel)) return false;
     }
 
     // Check monitoring shape if present
@@ -342,6 +373,7 @@ export class ProductionConfigManager {
       if (m === null || typeof m !== 'object' || Array.isArray(m)) return false;
       const mon = m as Record<string, unknown>;
       if ('metricsCollectionInterval' in mon && !isPositiveFiniteNumber(mon.metricsCollectionInterval)) return false;
+      if ('logLevel' in mon && !isAllowedEnumValue(mon.logLevel, PROD_CONFIG_ENUM_FIELDS.logLevel)) return false;
       // alertThresholds are magnitude/ratio numerics that drive alerting decisions and
       // round-trip through ProductionDashboard; validate finiteness per field (not just shape).
       if ('alertThresholds' in mon) {
@@ -360,6 +392,7 @@ export class ProductionConfigManager {
       if (e === null || typeof e !== 'object' || Array.isArray(e)) return false;
       const exp = e as Record<string, unknown>;
       if ('concurrentExports' in exp && !isPositiveFiniteNumber(exp.concurrentExports)) return false;
+      if ('defaultFormat' in exp && !isAllowedEnumValue(exp.defaultFormat, PROD_CONFIG_ENUM_FIELDS.defaultFormat)) return false;
       // qualityPresets inner numerics (width/height/fps/quality) are magnitude fields that
       // round-trip through ProductionDashboard.updateConfig and drive canvas dimensions, frame
       // counts, and pixel allocations downstream (production-exporter: `sceneDuration * fps`
