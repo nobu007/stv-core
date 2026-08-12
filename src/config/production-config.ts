@@ -435,13 +435,26 @@ export class ProductionConfigManager {
     }
 
     try {
-      // Environment variable overrides (ISS-012: browser-safe access)
+      // Environment variable overrides (ISS-012: browser-safe access).
+      // Boundary consistency: `configOverrides` is fed by two boundaries —
+      // localStorage restore (guarded by validateConfigOverrides →
+      // isPositiveFiniteNumber, REQ-054) and this env-var injection. A raw
+      // `parseInt` admitted NaN ('abc'), zero, and negatives straight into
+      // getConfig() / getOptimizedConfig (Math.min(NaN, n) = NaN), bypassing
+      // the chokepoint the other boundary enforces. Route the parsed value
+      // through the SAME predicate so both boundaries agree; an invalid env
+      // var is skipped (falls back to the env default), mirroring localStorage-
+      // corruption handling. Structurally anchored by
+      // production-config-env-boundary-exhaustive.test.ts (REQ-056).
       const maxConcurrent = ProductionConfigManager.getEnvVar('REACT_APP_MAX_CONCURRENT_JOBS');
       if (maxConcurrent) {
-        this.configOverrides.performance = {
-          ...this.configOverrides.performance,
-          maxConcurrentJobs: parseInt(maxConcurrent)
-        };
+        const parsed = parseInt(maxConcurrent, 10);
+        if (isPositiveFiniteNumber(parsed)) {
+          this.configOverrides.performance = {
+            ...this.configOverrides.performance,
+            maxConcurrentJobs: parsed,
+          };
+        }
       }
 
       const apiBaseUrl = ProductionConfigManager.getEnvVar('REACT_APP_API_BASE_URL');

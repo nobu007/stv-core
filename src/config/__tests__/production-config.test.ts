@@ -350,6 +350,55 @@ describe('ProductionConfigManager', () => {
     });
   });
 
+  // ── REQ-056: env-var numeric override must enforce the same finiteness
+  // invariant as the localStorage restore boundary ──
+  // configOverrides is fed by TWO boundaries: (1) localStorage restore, guarded
+  // by validateConfigOverrides → isPositiveFiniteNumber (REQ-054); (2) env-var
+  // injection in loadConfigOverrides, which used a raw parseInt. parseInt('abc')
+  // → NaN, parseInt('-5') → -5, parseInt('0') → 0 all crossed the boundary into
+  // getConfig() / getOptimizedConfig (Math.min(NaN, n) = NaN) unguarded — a
+  // boundary-consistency gap where one boundary enforced the magnitude invariant
+  // and the other did not. Both boundaries must agree.
+  describe('env var override finiteness (boundary consistency with localStorage restore)', () => {
+    let savedMaxConcurrent: string | undefined;
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      for (const k of Object.keys(mockStorage)) delete mockStorage[k];
+      savedMaxConcurrent = process.env.REACT_APP_MAX_CONCURRENT_JOBS;
+    });
+
+    afterEach(() => {
+      if (savedMaxConcurrent === undefined) {
+        delete process.env.REACT_APP_MAX_CONCURRENT_JOBS;
+      } else {
+        process.env.REACT_APP_MAX_CONCURRENT_JOBS = savedMaxConcurrent;
+      }
+    });
+
+    it.each([
+      ['abc', 'non-numeric (parseInt→NaN)'],
+      ['-5', 'negative'],
+      ['0', 'zero (not a positive magnitude)'],
+    ] as const)(
+      'does NOT inject REACT_APP_MAX_CONCURRENT_JOBS=%p (%s); falls back to finite env default',
+      (raw) => {
+        process.env.REACT_APP_MAX_CONCURRENT_JOBS = raw;
+        const mgr = new ProductionConfigManager();
+        const value = mgr.getConfig().performance.maxConcurrentJobs;
+        // Same invariant the localStorage boundary enforces: finite & positive.
+        expect(Number.isFinite(value)).toBe(true);
+        expect(value).toBeGreaterThan(0);
+      },
+    );
+
+    it('still injects a valid finite positive env-var override', () => {
+      process.env.REACT_APP_MAX_CONCURRENT_JOBS = '42';
+      const mgr = new ProductionConfigManager();
+      expect(mgr.getConfig().performance.maxConcurrentJobs).toBe(42);
+    });
+  });
+
   describe('localStorage type guard telemetry', () => {
     let warnSpy: jest.SpyInstance;
 
