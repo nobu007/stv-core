@@ -38,9 +38,20 @@
  *   inside validateConfigOverrides.
  *
  * All three sets are read straight from source, so — unlike a hand-maintained
- * checklist — the anchor cannot drift: when a 6th enum field is added to the
- * type, the type edit, the roster edit, and the validation edit must all land in
- * the same commit or this pin fires.
+ * checklist — the anchor cannot drift at the FIELD level: when a 6th enum field
+ * is added to the type, the type edit, the roster edit, and the validation edit
+ * must all land in the same commit or this pin fires.
+ *
+ * This closes field-NAME drift but is BLIND to value drift: the boolean and
+ * finiteness tails are drift-proof because their allowed set is structural
+ * (`: boolean`, `isPositiveFiniteNumber`), whereas the enum tail's allowed
+ * VALUES live in the hand-maintained `PROD_CONFIG_ENUM_FIELDS` arrays. Adding a
+ * literal to a union (e.g. `logLevel: 'trace'`) without the matching roster
+ * entry leaves the validator silently rejecting a now-type-legal value, and the
+ * field-level anchor never fires because the field NAME is unchanged. The
+ * REQ-058 describe block below closes that gap by asserting, per field, that
+ * the interface union literals equal the roster array literals — making all
+ * three tails of the boundary equally drift-proof rather than only two.
  *
  * RED VERIFICATION
  * ----------------
@@ -114,6 +125,65 @@ function readValidatedEnumFields(): string[] {
   return [...new Set(names)].sort();
 }
 
+/**
+ * For each enum field, the literal VALUES declared in the interface union —
+ * `{ field: ['a', 'b'] }`. Twin of `readRosterLiterals()`. The field-NAME
+ * 3-way equality above proves every literal-union field is rostered and
+ * validated, but it is BLIND to the allowed VALUES: the boolean/finiteness
+ * tails are drift-proof because their allowed set is structural (`: boolean`,
+ * `isPositiveFiniteNumber`), whereas the enum tail's allowed values live in a
+ * hand-maintained roster. Adding a literal to a union (e.g.
+ * `logLevel: 'error' | … | 'trace'`) without the matching roster entry leaves
+ * the validator silently REJECTING the now-type-legal value — a real defect —
+ * yet the field-level anchor never fires because the field NAME is unchanged.
+ * This value-level twin reads the union literals straight from the interface
+ * and asserts them equal to the roster literals, so all three tails of the
+ * declare→validate→persist→round-trip boundary are equally drift-proof rather
+ * than only two. Scoped to the same interface/const region as
+ * `readDeclaredEnumFields()`; the regex captures the full union body so every
+ * `'literal'` in the type is extracted.
+ */
+function readDeclaredEnumLiterals(): Record<string, string[]> {
+  const src = readSource();
+  const start = src.indexOf('export interface ProductionEnvironment');
+  const end = src.indexOf('const PROD_CONFIG_ENUM_FIELDS');
+  if (start === -1 || end === -1 || end <= start) {
+    throw new Error('interface/const region not found in production-config.ts');
+  }
+  const region = src.slice(start, end);
+  const out: Record<string, string[]> = {};
+  const matches = [...region.matchAll(/(\w+)\s*:\s*('[^']+'(?:\s*\|\s*'[^']+')+)\s*[;,]/g)];
+  for (const m of matches) {
+    const literals = [...m[2].matchAll(/'([^']+)'/g)].map((x) => x[1]);
+    out[m[1]] = [...new Set(literals)].sort();
+  }
+  return out;
+}
+
+/**
+ * For each enum field, the literal VALUES listed in the `PROD_CONFIG_ENUM_FIELDS`
+ * roster array — `{ field: ['a', 'b'] }`. Scoped to the const block (between
+ * the const declaration and the `isAllowedEnumValue` helper) so the interface
+ * unions cannot be matched, and so a value added only to the type without the
+ * roster is caught as drift against `readDeclaredEnumLiterals()`.
+ */
+function readRosterLiterals(): Record<string, string[]> {
+  const src = readSource();
+  const start = src.indexOf('const PROD_CONFIG_ENUM_FIELDS');
+  const end = src.indexOf('const isAllowedEnumValue');
+  if (start === -1 || end === -1 || end <= start) {
+    throw new Error('PROD_CONFIG_ENUM_FIELDS const block not found');
+  }
+  const block = src.slice(start, end);
+  const out: Record<string, string[]> = {};
+  const matches = [...block.matchAll(/(\w+)\s*:\s*\[([^\]]*)\]/g)];
+  for (const m of matches) {
+    const literals = [...m[2].matchAll(/'([^']+)'/g)].map((x) => x[1]);
+    out[m[1]] = [...new Set(literals)].sort();
+  }
+  return out;
+}
+
 describe('REQ-055: validateConfigOverrides covers every persisted enum field (enum closed-set anchor)', () => {
   const declared = readDeclaredEnumFields();
   const roster = readRosterKeys();
@@ -148,6 +218,46 @@ describe('REQ-055: validateConfigOverrides covers every persisted enum field (en
   it('declared == roster == validated (full three-way closed-set equality)', () => {
     expect(new Set(declared)).toEqual(new Set(roster));
     expect(new Set(roster)).toEqual(new Set(validated));
+  });
+});
+
+/**
+ * VALUE-LEVEL DRIFT GUARD (REQ-058) — the field-NAME anchor above is blind to
+ * the allowed literals. The boolean/finiteness tails are drift-proof because
+ * their allowed set is structural; the enum tail's allowed values live in the
+ * hand-maintained `PROD_CONFIG_ENUM_FIELDS` roster. Asserting the roster array
+ * literals equal the interface union literals per field makes the enum tail
+ * drift-proof too: a literal added to a type without the roster (validator now
+ * wrongly rejects a type-legal value) OR added to the roster without the type
+ * (validator now wrongly accepts a type-illegal value) both fire this pin.
+ *
+ * RED VERIFICATION
+ * ----------------
+ * Adding `'trace'` to the `logLevel` interface union only (not the roster)
+ * makes the field-level anchor above still PASS — the field NAME `logLevel` is
+ * unchanged in all three sets — but flips this value-level guard RED with
+ * `logLevel: interface=[…,trace,…] roster=[…]`, which is exactly the drift the
+ * field-level anchor cannot catch.
+ */
+describe('REQ-058: roster values match interface unions (value-level drift-proof)', () => {
+  const declaredLits = readDeclaredEnumLiterals();
+  const rosterLits = readRosterLiterals();
+  const fields = [...new Set([...Object.keys(declaredLits), ...Object.keys(rosterLits)])];
+
+  it('value-level extraction found at least one field (anchor is wired to real source)', () => {
+    expect(fields.length).toBeGreaterThan(0);
+  });
+
+  it('every field: interface union literals == roster array literals', () => {
+    const drift: string[] = [];
+    for (const field of fields) {
+      const d = declaredLits[field] ?? [];
+      const r = rosterLits[field] ?? [];
+      if (JSON.stringify(d) !== JSON.stringify(r)) {
+        drift.push(`${field}: interface=[${d.join(',')}] roster=[${r.join(',')}]`);
+      }
+    }
+    expect(drift).toEqual([]);
   });
 });
 
