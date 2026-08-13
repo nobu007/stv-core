@@ -152,6 +152,28 @@ describe('percentChange (canonical single-source)', () => {
     expect(percentChange(0, -100)).toBe(100);
     expect(percentChange(-150, -100)).toBe(-50);
   });
+
+  it('returns 0 (not NaN) for a non-finite baseline — closes the session-60 NaN vector at the sink', () => {
+    // A poisoned/tampered baseline whose magnitude is `1e400` survives
+    // JSON.parse as Infinity (the exact vector regression-detector's loadBaseline
+    // guard closes at the LOAD site). Reaching this canonical formula it yields
+    // NaN: `((100 - Infinity) / |Infinity|) * 100` → `(-Infinity / Infinity) * 100`
+    // → NaN. Every NaN comparison at the four consumers (`>= threshold`, `> 0`,
+    // `< 0`) is false, so the metric is silently classified "stable" and the
+    // regression/cost/performance gate is disabled with no warning — the hazard
+    // session-60 documented. That load-site guard closed ONE vector; this sink
+    // guard closes the canonical formula itself so ALL consumers (current +
+    // future) are structurally protected, mirroring the zero-baseline "no
+    // meaningful percentage" precedent above. Current is intentionally left
+    // unguarded: a non-finite MEASUREMENT legitimately signals a large change.
+    expect(percentChange(100, Infinity)).toBe(0);
+    expect(percentChange(100, -Infinity)).toBe(0);
+    expect(percentChange(50, Infinity)).toBe(0);
+    // Sentinel: a non-finite baseline must NOT leak NaN downstream.
+    expect(Number.isNaN(percentChange(100, Infinity))).toBe(false);
+    // A non-finite CURRENT against a finite baseline still flags (preserved).
+    expect(percentChange(Infinity, 100)).toBe(Infinity);
+  });
 });
 
 /**

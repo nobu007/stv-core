@@ -99,6 +99,20 @@ export function percentileCeil(sorted: number[], fraction: number): number {
  */
 export function percentChange(current: number, baseline: number): number {
   if (baseline === 0) return 0;
+  // Non-finite baseline → no meaningful percentage (returns 0, NOT NaN). A
+  // poisoned/tampered baseline whose magnitude is `1e400` survives JSON.parse
+  // as Infinity (the exact vector `regression-detector.loadBaseline`'s guard
+  // closes at the LOAD site) and otherwise reaches this canonical formula,
+  // yielding NaN: `((current - Infinity) / |Infinity|) * 100` → NaN. Every NaN
+  // comparison at the four consumers (`>= threshold`, `> 0`, `< 0`) is then
+  // false, so the metric is silently classified "stable" and the
+  // regression/cost/performance gate is disabled with no warning — the hazard
+  // session-60 documented. That load-site guard closed ONE vector; this SINK
+  // guard closes the canonical formula itself so ALL consumers (current +
+  // future) are structurally protected, mirroring the `baseline === 0 → 0`
+  // "no meaningful percentage" precedent. `current` is intentionally left
+  // unguarded: a non-finite MEASUREMENT legitimately signals a large change.
+  if (!Number.isFinite(baseline)) return 0;
   return ((current - baseline) / Math.abs(baseline)) * 100;
 }
 
