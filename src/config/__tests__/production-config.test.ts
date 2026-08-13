@@ -6,14 +6,19 @@
 import { ProductionConfigManager } from '../production-config';
 import { logger } from '@/utils/logger';
 
-// Mock logger
+// Mock logger. Includes setLevel/getLevel + LogLevel because updateConfig /
+// resetConfig now propagate monitoring.logLevel to the logger (REQ-059); the
+// real logger is exercised by production-config-loglevel-reaches-logger.test.ts.
 jest.mock('@/utils/logger', () => ({
   logger: {
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
     debug: jest.fn(),
+    setLevel: jest.fn(),
+    getLevel: jest.fn(),
   },
+  LogLevel: { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3, SILENT: 4 },
 }));
 
 // Mock localStorage

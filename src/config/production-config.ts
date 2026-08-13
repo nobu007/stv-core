@@ -4,7 +4,7 @@
  * Following custom instructions for production readiness enhancement
  */
 
-import { logger } from '@/utils/logger';
+import { logger, LogLevel } from '@/utils/logger';
 import { safeLoadFromStorage, safeRemoveFromStorage, safeSaveToStorage } from '@/utils/safe-storage';
 import { bytesToMb } from '@/lib/metrics-utils';
 
@@ -131,6 +131,32 @@ const PROD_CONFIG_ENUM_FIELDS: Readonly<Record<string, readonly string[]>> = {
 
 const isAllowedEnumValue = (value: unknown, allowed: readonly string[]): boolean =>
   typeof value === 'string' && allowed.includes(value);
+
+/**
+ * Boundary→generation bridge for `monitoring.logLevel` (REQ-059).
+ *
+ * `monitoring.logLevel` is the ONE ProductionEnvironment field whose declared
+ * literals ('error'|'warn'|'info'|'debug') map 1:1 — with no unit/concept
+ * mismatch — onto a real decision core: the logger's `LogLevel` enum. Every
+ * other persisted field is dashboard-isolated (no generation consumer) or
+ * semantically mismatched with its only plausible consumer (see the per-field
+ * audit in production-config-loglevel-mapping-exhaustive.test.ts, REQ-060).
+ * Before this map existed the logger hardcoded `LogLevel.INFO`, so the
+ * persisted, env-specific, validated logLevel (development→debug,
+ * production→warn) round-tripped through the dashboard into localStorage and
+ * straight back out without ever affecting a single emitted log line — the
+ * canonical dead-field failure mode of this repo's most prolific defect class.
+ *
+ * `Record<...logLevel, LogLevel>` makes an unmapped literal a *compile* error;
+ * REQ-060 makes it a *test* error too (value-level drift-proof, REQ-058 style)
+ * by asserting the map keys equal the interface's declared literals.
+ */
+const LOG_LEVEL_BY_NAME: Record<ProductionEnvironment['monitoring']['logLevel'], LogLevel> = {
+  error: LogLevel.ERROR,
+  warn: LogLevel.WARN,
+  info: LogLevel.INFO,
+  debug: LogLevel.DEBUG,
+};
 
 export class ProductionConfigManager {
   private currentEnv: ProductionEnvironment;
@@ -533,6 +559,29 @@ export class ProductionConfigManager {
   }
 
   /**
+   * Push the effective `monitoring.logLevel` into the logger — the
+   * boundary→generation bridge (REQ-059). Reads the MERGED config so a partial
+   * override of an unrelated section still re-applies the correct level, and an
+   * override of logLevel itself takes effect immediately. Private; the public
+   * entry point is {@link applyRuntimeConfig}.
+   */
+  private applyLogLevel(): void {
+    logger.setLevel(LOG_LEVEL_BY_NAME[this.getConfig().monitoring.logLevel]);
+  }
+
+  /**
+   * Apply runtime-consumed ProductionEnvironment fields to their decision-core
+   * consumers. Currently the sole consumer is the logger (logLevel, REQ-059);
+   * every other persisted field is dashboard-isolated or design-heavy to wire
+   * (see REQ-060 audit). Public so the config owner (ProductionDashboard) can
+   * trigger it at mount, and so {@link updateConfig}/{@link resetConfig}
+   * re-apply on mutation for live propagation.
+   */
+  applyRuntimeConfig(): void {
+    this.applyLogLevel();
+  }
+
+  /**
    * Update configuration with overrides
    */
   updateConfig(overrides: Partial<ProductionEnvironment>): void {
@@ -542,6 +591,9 @@ export class ProductionConfigManager {
     };
 
     safeSaveToStorage('production-config-overrides', this.configOverrides, 'ProductionConfigManager');
+    // Live propagation: a persisted logLevel override must reach the logger
+    // immediately, not only on the next dashboard mount (REQ-059).
+    this.applyLogLevel();
   }
 
   /**
@@ -555,6 +607,9 @@ export class ProductionConfigManager {
     // weakened, the structural guard at tests/guards/raw-localstorage-remove-
     // chokepoint.test.ts (TC-315) fires.
     safeRemoveFromStorage('production-config-overrides', 'ProductionConfigManager.resetConfig');
+    // Live propagation: reverting to the env-default logLevel must reach the
+    // logger immediately (REQ-059).
+    this.applyLogLevel();
   }
 
   /**
