@@ -1,5 +1,6 @@
 import { SceneGraph } from '@/types/diagram';
 import { logger } from '@/utils/logger';
+import { DEFAULT_FPS } from '@/remotion/scene-synchronizer';
 
 export interface VideoRenderOptions {
   scenes: SceneGraph[];
@@ -30,7 +31,7 @@ export class VideoRenderer {
     try {
       // Calculate total duration and frames
       const totalDuration = options.scenes.reduce((acc, scene) => acc + scene.durationMs, 0);
-      const fps = 30;
+      const fps = DEFAULT_FPS;
       const totalFrames = Math.ceil((totalDuration / 1000) * fps);
 
       if (onProgress) {

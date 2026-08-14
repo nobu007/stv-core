@@ -8,6 +8,7 @@ import { renderMedia, selectComposition } from '@remotion/renderer';
 import type { VideoConfig } from 'remotion';
 import { SceneGraph } from '@/types/diagram';
 import { COMPOSITION_ID } from '@/remotion/composition-id';
+import { DEFAULT_FPS } from '@/remotion/scene-synchronizer';
 import { RenderingError } from '@/pipeline/pipeline-errors';
 import path from 'path';
 import os from 'os';
@@ -224,7 +225,7 @@ export class ActualVideoRenderer {
     // requests render at the requested rate. Previously a fixed `const fps = 30`
     // silently dropped VideoGenerator.options.fps — producer-computes-but-
     // boundary-drops, same class as the quality fix 6937b8b at the prior boundary.
-    const resolvedFps = fps ?? 30;
+    const resolvedFps = fps ?? DEFAULT_FPS;
     // 最小1秒保証 (1 second = resolvedFps frames, so the floor scales with fps)
     const durationInFrames = Math.max(resolvedFps, Math.ceil((totalDurationMs / 1000) * resolvedFps));
 
