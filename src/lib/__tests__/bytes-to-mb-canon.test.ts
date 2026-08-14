@@ -28,21 +28,28 @@
  */
 import { describe, it, expect } from '@jest/globals';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { globSync } from 'node:fs';
 
 import { bytesToMb } from '../metrics-utils';
 
+// Anchored to import.meta.url, not process.cwd(): a jest worker's cwd can be
+// moved by a module-load side effect (whisper-node chdir — see
+// tests/__mocks__/whisper-node.ts) or simply differ under --maxWorkers>1
+// (TC-302/313); cwd-relative source reads then flake with ENOENT.
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+
 const metricsUtilsSrc = readFileSync(
-  resolve(process.cwd(), 'src/lib/metrics-utils.ts'),
+  resolve(REPO_ROOT, 'src/lib/metrics-utils.ts'),
   'utf8',
 );
 const healthCheckSrc = readFileSync(
-  resolve(process.cwd(), 'src/monitoring/health-check-service.ts'),
+  resolve(REPO_ROOT, 'src/monitoring/health-check-service.ts'),
   'utf8',
 );
 const monitorSrc = readFileSync(
-  resolve(process.cwd(), 'src/monitoring/real-time-performance-monitor.ts'),
+  resolve(REPO_ROOT, 'src/monitoring/real-time-performance-monitor.ts'),
   'utf8',
 );
 
@@ -116,13 +123,13 @@ describe('bytes→MB division — broad cross-layer sweep', () => {
   // never flagged.
   it('no production source file re-derives bytes / 1024 / 1024 (or / 1048576)', () => {
     const files = ([
-      ...globSync('src/**/*.ts'),
-      ...globSync('src/**/*.tsx'),
+      ...globSync('src/**/*.ts', { cwd: REPO_ROOT }),
+      ...globSync('src/**/*.tsx', { cwd: REPO_ROOT }),
     ] as string[]).filter(f => !f.includes('__tests__'));
 
     const offenders: string[] = [];
     for (const file of files) {
-      const src = stripComments(readFileSync(resolve(process.cwd(), file), 'utf8'));
+      const src = stripComments(readFileSync(resolve(REPO_ROOT, file), 'utf8'));
       if (BYTES_DIVISION.test(src) || BYTES_LITERAL.test(src)) {
         offenders.push(file);
       }

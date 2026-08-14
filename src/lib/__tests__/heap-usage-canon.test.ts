@@ -21,23 +21,30 @@
  */
 import { describe, it, expect } from '@jest/globals';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { globSync } from 'node:fs';
 
+// Anchored to import.meta.url, not process.cwd(): a jest worker's cwd can be
+// moved by a module-load side effect (whisper-node chdir — see
+// tests/__mocks__/whisper-node.ts) or simply differ under --maxWorkers>1
+// (TC-302/313); cwd-relative source reads then flake with ENOENT.
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+
 const metricsUtilsSrc = readFileSync(
-  resolve(process.cwd(), 'src/lib/metrics-utils.ts'),
+  resolve(REPO_ROOT, 'src/lib/metrics-utils.ts'),
   'utf8',
 );
 const healthCheckSrc = readFileSync(
-  resolve(process.cwd(), 'src/monitoring/health-check-service.ts'),
+  resolve(REPO_ROOT, 'src/monitoring/health-check-service.ts'),
   'utf8',
 );
 const monitorSrc = readFileSync(
-  resolve(process.cwd(), 'src/monitoring/real-time-performance-monitor.ts'),
+  resolve(REPO_ROOT, 'src/monitoring/real-time-performance-monitor.ts'),
   'utf8',
 );
 const errorRecoverySrc = readFileSync(
-  resolve(process.cwd(), 'src/quality/enhanced-error-recovery.ts'),
+  resolve(REPO_ROOT, 'src/quality/enhanced-error-recovery.ts'),
   'utf8',
 );
 
@@ -94,13 +101,13 @@ describe('heap-ratio division — broad cross-layer sweep', () => {
   // the three known publishers. The canonical definition in metrics-utils.ts is
   // excluded (it is the ONE sanctioned division).
   it('no production source file re-derives heapUsed / heapTotal', () => {
-    const files = (globSync('src/**/*.ts') as string[]).filter(
+    const files = (globSync('src/**/*.ts', { cwd: REPO_ROOT }) as string[]).filter(
       f => !f.includes('__tests__') && !f.endsWith('metrics-utils.ts'),
     );
 
     const offenders: string[] = [];
     for (const file of files) {
-      const src = stripComments(readFileSync(resolve(process.cwd(), file), 'utf8'));
+      const src = stripComments(readFileSync(resolve(REPO_ROOT, file), 'utf8'));
       if (HEAP_DIVISION.test(src)) offenders.push(file);
     }
     expect(offenders).toEqual([]);
