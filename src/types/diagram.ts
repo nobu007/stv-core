@@ -104,6 +104,31 @@ export function isDiagramType(value: unknown): value is DiagramType {
   return typeof value === 'string' && (DIAGRAM_TYPES as readonly string[]).includes(value);
 }
 
+/**
+ * Canonical Japanese display title per diagram type — the single source.
+ *
+ * Previously the same "type → title" map was independently frozen in
+ * video-generator (`generateSceneTitle`) and DiagramScene (`DIAGRAM_TITLES`),
+ * and the two had ALREADY drifted: `flowchart` was 「プロセスフロー」 in the
+ * generated scene title but 「フローチャート」 in the rendered video frame,
+ * and `general` was 「ダイアグラム」 vs 「一般」. The DiagramPreview badge
+ * labels (ツリー構造/マトリクス/…) are a different surface (UI shorthand, not
+ * the video title) and stay local to that component.
+ */
+export const DIAGRAM_TYPE_TITLES: Record<DiagramType, string> = {
+  flow: 'プロセスフロー',
+  flowchart: 'フローチャート',
+  tree: '階層構造',
+  timeline: 'タイムライン',
+  matrix: '比較表',
+  cycle: '循環プロセス',
+  comparison: '比較',
+  network: 'ネットワーク',
+  conceptmap: 'コンセプトマップ',
+  mindmap: 'マインドマップ',
+  general: '一般',
+};
+
 export function isNodeDatum(value: unknown): value is NodeDatum {
   if (typeof value !== 'object' || value === null) return false;
   const obj = value as Record<string, unknown>;
