@@ -195,6 +195,100 @@ export function heapUsagePercent(heapUsed: number, heapTotal: number): number {
 }
 
 /**
+ * Sum of the finite elements of `values` (`Number.isFinite` per element).
+ * Returns `fallback` (default 0) when no finite element exists — including
+ * the empty array. Single pass, O(n), never throws.
+ *
+ * Non-finite elements are EXCLUDED, not zero-substituted (specs/
+ * finite-safe-aggregation architecture D2): for aggregates over observations,
+ * a missing sample leaves the population — zero-substitution would bias e.g.
+ * a mean of `[100, 200, NaN]` down to 100 instead of the correct 150.
+ * Zero-substitution of a SCALAR field remains `sanitizeFinite`'s job
+ * (`src/utils/guards.ts`); the two coexist by scope, scalar vs aggregate.
+ *
+ * Finite-only inputs are bitwise-equal to `values.reduce((a, b) => a + b, 0)`:
+ * the same additions happen in the same order starting from 0, so `-0`
+ * propagates identically (`0 + -0 = +0`, as in the legacy reduce).
+ */
+export function safeSum(values: readonly number[], fallback: number = 0): number {
+  let acc = 0;
+  let any = false;
+  for (const v of values) {
+    if (Number.isFinite(v)) {
+      acc += v;
+      any = true;
+    }
+  }
+  return any ? acc : fallback;
+}
+
+/**
+ * Arithmetic mean of the finite elements of `values`, with the denominator
+ * being the FINITE-element count — NOT the array length. Dividing by the
+ * array length after exclusion would discount the mean once per excluded
+ * element (the zero-substitution bias D2 rejects). Returns `fallback`
+ * (default 0) when no finite element exists. Never throws, never returns
+ * `NaN` (an empty fold never reaches the division).
+ *
+ * Finite-only inputs are bitwise-equal to
+ * `values.reduce((a, b) => a + b, 0) / values.length` — the same two
+ * operations in the same order.
+ */
+export function safeMean(values: readonly number[], fallback: number = 0): number {
+  let sum = 0;
+  let count = 0;
+  for (const v of values) {
+    if (Number.isFinite(v)) {
+      sum += v;
+      count += 1;
+    }
+  }
+  return count > 0 ? sum / count : fallback;
+}
+
+/**
+ * Maximum of the finite elements of `values`. Returns `fallback` (default 0)
+ * when no finite element exists — it never returns `-Infinity` (the legacy
+ * `Math.max(...values)` on an empty or all-`-Infinity` array) and never
+ * propagates a `NaN` element. Loop-based, so unlike the spread form it
+ * cannot blow the call stack on large arrays (EDGE-102: `Math.max(...arr)`
+ * throws RangeError from ~1e5 elements).
+ *
+ * Finite-only non-empty inputs are value-equal to `Math.max(...values)`
+ * (max is order-insensitive, so bitwise equality of doubles holds trivially).
+ */
+export function safeMax(values: readonly number[], fallback: number = 0): number {
+  let acc: number | null = null;
+  for (const v of values) {
+    if (!Number.isFinite(v)) continue;
+    // `v > acc || both-zero-with-v-positive` mirrors Math.max's zero-sign
+    // rule: max(-0, +0) is +0, and max of all -0 stays -0.
+    if (acc === null || v > acc || (v === 0 && acc === 0 && Object.is(v, 0))) {
+      acc = v;
+    }
+  }
+  return acc === null ? fallback : acc;
+}
+
+/**
+ * Minimum of the finite elements of `values` — the mirror of
+ * {@link safeMax}: returns `fallback` (default 0) when no finite element
+ * exists, never `+Infinity`, never NaN, loop-based (no spread).
+ */
+export function safeMin(values: readonly number[], fallback: number = 0): number {
+  let acc: number | null = null;
+  for (const v of values) {
+    if (!Number.isFinite(v)) continue;
+    // `v < acc || both-zero-with-v-negative` mirrors Math.min's zero-sign
+    // rule: min(+0, -0) is -0, and min of all +0 stays +0.
+    if (acc === null || v < acc || (v === 0 && acc === 0 && Object.is(v, -0))) {
+      acc = v;
+    }
+  }
+  return acc === null ? fallback : acc;
+}
+
+/**
  * Convert a byte count to binary megabytes (MiB): `bytes / (1024 * 1024)`.
  *
  * The `bytes / 1024 / 1024` conversion recurred at 20+ sites across the heap
