@@ -1,5 +1,6 @@
 import type { ConfigSchema } from './schema';
 import { SECURITY_LIMITS } from './limits';
+import { getJwtSecretFromEnv } from '../api/jwt-secret';
 
 /**
  * Represents a single validation error for a configuration field.
@@ -203,8 +204,8 @@ export function validateSecurityEnv(): { warnings: ValidationError[]; errors: Va
   const errors: ValidationError[] = [];
   const isProduction = process.env.NODE_ENV === 'production';
 
-  // JWT_SECRET validation
-  const jwtSecret = process.env.JWT_SECRET || process.env.SUPABASE_JWT_SECRET;
+  // JWT_SECRET validation (same resolution chain as both auth middlewares)
+  const jwtSecret = getJwtSecretFromEnv();
   if (jwtSecret) {
     const jwtWarnings = validateJwtSecret(jwtSecret);
     if (isProduction && jwtWarnings.length > 0) {
