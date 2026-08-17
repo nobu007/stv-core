@@ -32,6 +32,7 @@ import {
  */
 function isSafeInnerValue(s: string): boolean {
   // No raw control characters at all (0x00-0x1f includes LF/CR/TAB; 0x7f = DEL).
+  // eslint-disable-next-line no-control-regex -- intentional: this helper exists to detect control chars
   if (/[\x00-\x1f\x7f]/.test(s)) return false;
   // Must decompose into the three legal escapes or a lone safe char. Any raw `"`,
   // any lone/stray backslash, or any other anomaly fails this.
