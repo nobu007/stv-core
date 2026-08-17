@@ -43,6 +43,7 @@ export function sanitizePrometheusLabel(value: string): string {
     .replace(/\\/g, '\\\\') // escape backslashes FIRST
     .replace(/"/g, '\\"') // escape double quotes
     .replace(/\n/g, '\\n') // escape newlines (spec-required)
+    // eslint-disable-next-line no-control-regex -- intentional: this regex's purpose is to strip control chars
     .replace(/[\x00-\x09\x0b-\x1f\x7f]/g, '') // strip other control chars (CR, TAB, NUL, DEL, …)
     .slice(0, MAX_PROMETHEUS_LABEL_LENGTH);
 }
