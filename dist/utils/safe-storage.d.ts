@@ -1,0 +1,64 @@
+/**
+ * Safe localStorage deserialization with built-in corruption observability.
+ *
+ * Wraps the common pattern:
+ *   1. localStorage.getItem(key)
+ *   2. JSON.parse(value)
+ *   3. Type-guard validation
+ *   4. On any failure: reportCorruption + removeItem + return default
+ *
+ * Future callers should use this instead of hand-rolling try/catch +
+ * console.warn at each location.
+ */
+/**
+ * Load and validate a JSON-serialisable value from localStorage.
+ *
+ * @param key         localStorage key
+ * @param validate    Type-guard function; return `true` if the parsed value is safe
+ * @param source      Logical source identifier for corruption reports
+ * @param defaultValue Value returned on any failure (default: `null`)
+ * @returns           The validated value, or `defaultValue` on failure
+ */
+export declare function safeLoadFromStorage<T>(key: string, validate: (parsed: unknown) => parsed is T, source: string, defaultValue: T): T;
+/**
+ * Safely serialize and persist a value to localStorage.
+ *
+ * Wraps the common pattern:
+ *   1. JSON.stringify(value)
+ *   2. localStorage.setItem(key, serialized)
+ *   3. On any failure: reportCorruption + return false
+ *
+ * @param key     localStorage key
+ * @param value   Value to serialize and store
+ * @param source  Logical source identifier for corruption reports
+ * @returns       `true` on success, `false` on failure
+ */
+export declare function safeSaveToStorage(key: string, value: unknown, source: string): boolean;
+/**
+ * Safely remove a key from localStorage.
+ *
+ * Wraps the common pattern:
+ *   1. localStorage.removeItem(key)
+ *   2. On any failure: reportCorruption + return false
+ *
+ * Why this chokepoint exists. Raw `localStorage.removeItem` in production code
+ * mirrors the same hazard the load/save siblings close: in private browsing
+ * or restricted environments the storage object itself can throw on access
+ * (Safari historically, locked-down iframes, some SSR fallbacks). Each raw
+ * callsite must re-implement the try/catch + corruption-report pair, which is
+ * exactly the cross-file drift that previously caused silent state loss and
+ * stack-trace noise in the console. Routing the call through this helper
+ * collapses that drift to one chokepoint.
+ *
+ * Used by:
+ *   - `src/config/production-config.ts` — `resetConfig()` previously wrapped
+ *     `localStorage.removeItem('production-config-overrides')` in its own
+ *     try/catch + logger.warn. Routing it through here removes the duplicated
+ *     boilerplate and surfaces the failure as a corruption report (the same
+ *     observability the load/save helpers already emit).
+ *
+ * @param key     localStorage key
+ * @param source  Logical source identifier for corruption reports
+ * @returns       `true` on success, `false` on failure (storage threw)
+ */
+export declare function safeRemoveFromStorage(key: string, source: string): boolean;

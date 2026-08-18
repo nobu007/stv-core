@@ -1,0 +1,146 @@
+// src/config/limits.ts
+var RATE_LIMITS = {
+  /** Global API rate limit */
+  API: {
+    /** Window duration in milliseconds */
+    WINDOW_MS: 15 * 60 * 1e3,
+    // 15 minutes
+    /** Maximum requests per window per IP */
+    MAX_REQUESTS: 100
+  },
+  /** Upload / batch-job-creation rate limit */
+  UPLOAD: {
+    /** Window duration in milliseconds */
+    WINDOW_MS: 15 * 60 * 1e3,
+    // 15 minutes
+    /** Maximum requests per window per IP */
+    MAX_REQUESTS: 20
+  },
+  /** Export / render rate limit — protects expensive CPU-bound operations */
+  EXPORT: {
+    /** Window duration in milliseconds */
+    WINDOW_MS: 15 * 60 * 1e3,
+    // 15 minutes
+    /** Maximum render requests per window per IP */
+    MAX_REQUESTS: 10
+  }
+};
+var BATCH_LIMITS = {
+  /** Maximum number of concurrent batch jobs */
+  MAX_CONCURRENT_JOBS: 3,
+  /** Maximum number of jobs stored in memory before pruning */
+  MAX_STORED_JOBS: 200,
+  /** Maximum number of files per batch request */
+  MAX_FILES_PER_BATCH: 100
+};
+var SERVER_LIMITS = {
+  /** Maximum JSON body size */
+  BODY_LIMIT: "50mb",
+  /** Default request timeout in milliseconds */
+  DEFAULT_TIMEOUT_MS: 3e4,
+  /** Timeout for expensive operations (render, batch) in milliseconds */
+  HEAVY_OPERATION_TIMEOUT_MS: 12e4
+};
+var PIPELINE_LIMITS = {
+  /** Maximum number of scenes per render request */
+  MAX_SCENES: 200,
+  /** Maximum stored iterations before compaction */
+  MAX_ITERATIONS: 500,
+  /** Maximum output filename length */
+  MAX_OUTPUT_NAME_LENGTH: 255,
+  /** Maximum commit message length */
+  MAX_COMMIT_MESSAGE_LENGTH: 1e3,
+  /** Maximum allowed FPS value */
+  MAX_FPS: 120,
+  /** Maximum resolution dimension (width or height in pixels) — prevents resource exhaustion */
+  MAX_RESOLUTION_DIMENSION: 8640
+  // 8K
+};
+var SUPPORTED_AUDIO_FORMATS = ["mp3", "wav", "ogg", "m4a"];
+var AUDIO_LIMITS = {
+  /** Maximum file size in bytes (50 MB) */
+  MAX_FILE_SIZE_BYTES: 50 * 1024 * 1024,
+  /** Duration threshold (seconds) above which a pre-processing warning is shown (EDGE-103) */
+  DURATION_WARNING_SECONDS: 3600
+};
+var ERROR_REGISTRY_LIMITS = {
+  /** Maximum number of errors stored before oldest are evicted */
+  MAX_STORED_ERRORS: 1e3,
+  /** Maximum errorId length in characters */
+  MAX_ERROR_ID_LENGTH: 128,
+  /** Maximum errorMessage length in characters */
+  MAX_ERROR_MESSAGE_LENGTH: 2e3,
+  /** Allowed characters in errorId: alphanumeric, hyphens, underscores, dots */
+  ERROR_ID_PATTERN: /^[a-zA-Z0-9._-]+$/
+};
+var EXPORT_RETRY_LIMITS = {
+  /** Maximum retry attempts for transient encoding errors */
+  MAX_RETRIES: 3,
+  /** Initial delay in ms before the first retry */
+  INITIAL_DELAY_MS: 1e3,
+  /** Maximum delay between retries in ms */
+  MAX_DELAY_MS: 3e4,
+  /** Jitter range in ms (0–JITTER_MAX_MS added to each delay) */
+  JITTER_MAX_MS: 500
+};
+var EXPORT_STAGE_TIMEOUTS = {
+  /** Preparing stage timeout (scene validation, codec setup) */
+  preparing: 3e4,
+  /** Rendering stage timeout (frame generation) */
+  rendering: 6e5,
+  /** Encoding stage timeout (format-specific encoding) */
+  encoding: 3e5,
+  /** Finalizing stage timeout (verification, file write) */
+  finalizing: 6e4
+};
+var EXPORT_QUEUE_LIMITS = {
+  /** Maximum number of concurrent export jobs processed by the queue */
+  MAX_CONCURRENT: 3,
+  /** Maximum number of jobs that can be waiting in the queue */
+  MAX_QUEUE_SIZE: 100,
+  /** Interval in ms at which the oldest low-priority job is promoted to prevent starvation */
+  STARVATION_PREVENTION_INTERVAL_MS: 3e4,
+  /** Maximum number of terminal (completed/failed/cancelled) jobs retained for status lookups */
+  MAX_COMPLETED_JOBS: 500,
+  /** Maximum retry attempts before a failed job is moved to the dead letter queue */
+  MAX_RETRIES: 3,
+  /** Base delay in ms for exponential backoff between retries */
+  RETRY_BASE_DELAY_MS: 2e3,
+  /** Maximum delay in ms between retries (backoff cap) */
+  RETRY_MAX_DELAY_MS: 3e4,
+  /** Maximum number of jobs retained in the dead letter queue */
+  MAX_DLQ_JOBS: 200
+};
+var ARTIFACT_STORE_LIMITS = {
+  /** Default artifact TTL in ms (1 hour) */
+  DEFAULT_TTL_MS: 36e5,
+  /** Maximum total storage in bytes (1 GB) */
+  MAX_STORAGE_BYTES: 1024 * 1024 * 1024,
+  /** Maximum number of stored artifacts */
+  MAX_ARTIFACTS: 1e3,
+  /** Download URL validity in ms (5 minutes) */
+  DOWNLOAD_URL_TTL_MS: 3e5,
+  /** Interval in ms for periodic TTL cleanup */
+  CLEANUP_INTERVAL_MS: 6e4
+};
+var SECURITY_LIMITS = {
+  /** Minimum JWT secret length */
+  JWT_SECRET_MIN_LENGTH: 32,
+  /** Minimum unique character types in JWT secret (uppercase, lowercase, digit, special) */
+  JWT_SECRET_MIN_CHAR_TYPES: 2
+};
+
+export {
+  RATE_LIMITS,
+  BATCH_LIMITS,
+  SERVER_LIMITS,
+  PIPELINE_LIMITS,
+  SUPPORTED_AUDIO_FORMATS,
+  AUDIO_LIMITS,
+  ERROR_REGISTRY_LIMITS,
+  EXPORT_RETRY_LIMITS,
+  EXPORT_STAGE_TIMEOUTS,
+  EXPORT_QUEUE_LIMITS,
+  ARTIFACT_STORE_LIMITS,
+  SECURITY_LIMITS
+};

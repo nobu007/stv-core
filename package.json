@@ -1,6 +1,6 @@
 {
   "name": "@stv/core",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "Core layer of the speech-to-visuals family: type contracts, shared pure utilities, and config schema. No domain transforms, no UI, no orchestration.",
   "type": "module",
