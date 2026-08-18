@@ -17,3 +17,5 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify
+      # dist is committed: fail when a source change ships without rebuilding
+      - run: git diff --exit-code -- dist/
