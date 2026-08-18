@@ -42,6 +42,13 @@ export declare function evaluateAudit(metrics: CodeSizeMetrics, limits?: CodeSiz
 export interface CollectOptions {
     /** When true, only walk the `src/` subdirectory. Defaults to true. */
     srcOnly?: boolean;
+    /**
+     * When true, exclude test files from the count: `__tests__/` directories
+     * and `*.test.*` / `*.spec.*` files. Implementation-only accounting — the
+     * convention the product repo's constitution (V2.8) ratchets against, so
+     * test-suite growth cannot silently eat the size budget.
+     */
+    implOnly?: boolean;
 }
 /**
  * Recursively walk `rootDir` and return metrics for every source file found.

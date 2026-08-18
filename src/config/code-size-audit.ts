@@ -125,6 +125,13 @@ const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
 export interface CollectOptions {
   /** When true, only walk the `src/` subdirectory. Defaults to true. */
   srcOnly?: boolean;
+  /**
+   * When true, exclude test files from the count: `__tests__/` directories
+   * and `*.test.*` / `*.spec.*` files. Implementation-only accounting — the
+   * convention the product repo's constitution (V2.8) ratchets against, so
+   * test-suite growth cannot silently eat the size budget.
+   */
+  implOnly?: boolean;
 }
 
 /**
@@ -137,6 +144,7 @@ export function collectMetrics(
   options?: CollectOptions,
 ): CodeSizeMetrics {
   const srcOnly = options?.srcOnly !== false; // default true
+  const implOnly = options?.implOnly === true; // default false
   const files: FileMetrics[] = [];
 
   function walk(dir: string): void {
@@ -150,12 +158,12 @@ export function collectMetrics(
 
     for (const entry of entries) {
       if (entry.isDirectory()) {
-        if (!SKIP_DIRS.has(entry.name)) {
+        if (!SKIP_DIRS.has(entry.name) && !(implOnly && entry.name === '__tests__')) {
           walk(path.join(dir, entry.name));
         }
       } else if (entry.isFile()) {
         const ext = path.extname(entry.name);
-        if (SOURCE_EXTENSIONS.has(ext)) {
+        if (SOURCE_EXTENSIONS.has(ext) && !(implOnly && /\.(test|spec)\.[jt]sx?$/.test(entry.name))) {
           const fullPath = path.join(dir, entry.name);
           const content = fs.readFileSync(fullPath, 'utf-8');
           const lines = content.split('\n').length;

@@ -73,6 +73,7 @@ const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
  */
 export function collectMetrics(rootDir, options) {
     const srcOnly = options?.srcOnly !== false; // default true
+    const implOnly = options?.implOnly === true; // default false
     const files = [];
     function walk(dir) {
         let entries;
@@ -85,13 +86,13 @@ export function collectMetrics(rootDir, options) {
         }
         for (const entry of entries) {
             if (entry.isDirectory()) {
-                if (!SKIP_DIRS.has(entry.name)) {
+                if (!SKIP_DIRS.has(entry.name) && !(implOnly && entry.name === '__tests__')) {
                     walk(path.join(dir, entry.name));
                 }
             }
             else if (entry.isFile()) {
                 const ext = path.extname(entry.name);
-                if (SOURCE_EXTENSIONS.has(ext)) {
+                if (SOURCE_EXTENSIONS.has(ext) && !(implOnly && /\.(test|spec)\.[jt]sx?$/.test(entry.name))) {
                     const fullPath = path.join(dir, entry.name);
                     const content = fs.readFileSync(fullPath, 'utf-8');
                     const lines = content.split('\n').length;

@@ -172,6 +172,29 @@ describe('code-size-audit', () => {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     });
 
+    it('implOnly excludes __tests__ dirs and *.test.* / *.spec.* files', () => {
+      fs.mkdirSync(path.join(tmpDir, 'src', '__tests__'), { recursive: true });
+      fs.writeFileSync(path.join(tmpDir, 'src', 'a.ts'), 'l1\nl2\nl3');
+      fs.writeFileSync(path.join(tmpDir, 'src', 'b.ts'), 'l1\nl2');
+      fs.writeFileSync(path.join(tmpDir, 'src', 'c.test.ts'), 'x\n');
+      fs.writeFileSync(path.join(tmpDir, 'src', 'd.spec.tsx'), 'x\n');
+      fs.writeFileSync(path.join(tmpDir, 'src', '__tests__', 'e.ts'), 'x\n');
+      const metrics = collectMetrics(tmpDir, { implOnly: true });
+      expect(metrics.fileCount).toBe(2);
+      expect(metrics.lineCount).toBe(5);
+      expect(
+        metrics.files.map((f) => f.path).some((p) => p.includes('test') || p.includes('spec')),
+      ).toBe(false);
+    });
+
+    it('counts test files when implOnly is not set', () => {
+      fs.mkdirSync(path.join(tmpDir, 'src'));
+      fs.writeFileSync(path.join(tmpDir, 'src', 'a.ts'), 'x\n');
+      fs.writeFileSync(path.join(tmpDir, 'src', 'b.test.ts'), 'x\n');
+      const metrics = collectMetrics(tmpDir);
+      expect(metrics.fileCount).toBe(2);
+    });
+
     it('should return zero metrics for empty directory', () => {
       const metrics = collectMetrics(tmpDir);
       expect(metrics.fileCount).toBe(0);
