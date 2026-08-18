@@ -1,6 +1,6 @@
 import type { ConfigSchema } from './schema';
 import { validateConfig } from './validate';
-import { PipelineConfigError } from '@/pipeline/pipeline-errors';
+import { ConfigValidationError } from './errors';
 
 /** Cached singleton config instance */
 let cachedConfig: ConfigSchema | null = null;
@@ -94,7 +94,7 @@ export function getConfig(): ConfigSchema {
     const errorMessages = errors
       .map((e) => `  - ${e.field}: ${e.message}`)
       .join('\n');
-    throw new PipelineConfigError('env', `Configuration validation failed:\n${errorMessages}`);
+    throw new ConfigValidationError('env', `Configuration validation failed:\n${errorMessages}`);
   }
 
   cachedConfig = rawConfig as ConfigSchema;
