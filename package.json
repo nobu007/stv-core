@@ -1,6 +1,6 @@
 {
   "name": "@stv/core",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "private": true,
   "description": "Core layer of the speech-to-visuals family: type contracts, shared pure utilities, and config schema. No domain transforms, no UI, no orchestration.",
   "type": "module",
@@ -47,7 +47,7 @@
     "src"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && node scripts/build.mjs",
+    "build": "tsc -p tsconfig.build.json && node scripts/fix-dist-imports.mjs",
     "type-check": "tsc -p tsconfig.json --noEmit",
     "test": "NODE_OPTIONS='--experimental-vm-modules --max-old-space-size=2048' jest --config jest.config.cjs",
     "boundary": "node scripts/check-boundaries.mjs",
@@ -61,7 +61,6 @@
     "@jest/globals": "^30.4.1",
     "@types/jest": "^30.0.0",
     "@types/node": "^25.6.0",
-    "esbuild": "^0.25.5",
     "jest": "^30.4.2",
     "ts-jest": "^29.4.11",
     "typescript": "^5.9.3"

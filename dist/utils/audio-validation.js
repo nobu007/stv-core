@@ -1,100 +1,112 @@
-import {
-  AUDIO_LIMITS,
-  SUPPORTED_AUDIO_FORMATS
-} from "../chunk-DIBTSNJJ.js";
-
-// src/utils/audio-validation.ts
-var MIN_AUDIO_DURATION_SECONDS = 1;
-function validateAudioFile(file) {
-  const errors = [];
-  const warnings = [];
-  if (file.size === 0) {
-    errors.push("Audio file is empty (0 bytes)");
-  }
-  if (file.size > AUDIO_LIMITS.MAX_FILE_SIZE_BYTES) {
-    errors.push(
-      `File size ${(file.size / (1024 * 1024)).toFixed(1)}MB exceeds maximum allowed size ${(AUDIO_LIMITS.MAX_FILE_SIZE_BYTES / (1024 * 1024)).toFixed(0)}MB`
-    );
-  }
-  const validTypes = [
-    "audio/mpeg",
-    "audio/mp3",
-    "audio/wav",
-    "audio/wave",
-    "audio/ogg",
-    "audio/x-ogg",
-    "audio/mp4",
-    "audio/x-m4a",
-    "audio/webm"
-  ];
-  const validExtensions = [...SUPPORTED_AUDIO_FORMATS, "webm"];
-  const ext = file.name.split(".").pop()?.toLowerCase();
-  const typeValid = validTypes.some((t) => file.type === t) || (file.type?.startsWith("audio/") ?? false);
-  const extValid = ext !== void 0 && validExtensions.includes(ext);
-  if (!typeValid && !extValid) {
-    errors.push(
-      `Unsupported audio file: "${file.name}" (type: ${file.type || "unknown"}). Supported formats: ${validExtensions.join(", ")}`
-    );
-  }
-  return {
-    valid: errors.length === 0,
-    errors,
-    warnings
-  };
-}
-function validateAudioDuration(durationSeconds) {
-  const errors = [];
-  const warnings = [];
-  if (!Number.isFinite(durationSeconds) || durationSeconds < 0) {
-    errors.push(`Invalid audio duration: ${durationSeconds}`);
-    return { valid: false, errors, warnings };
-  }
-  if (durationSeconds < MIN_AUDIO_DURATION_SECONDS) {
-    errors.push(
-      `Audio duration ${durationSeconds.toFixed(2)}s is below minimum ${MIN_AUDIO_DURATION_SECONDS}s`
-    );
-  }
-  if (durationSeconds > AUDIO_LIMITS.DURATION_WARNING_SECONDS) {
-    warnings.push(
-      `Audio duration ${(durationSeconds / 60).toFixed(0)}min exceeds recommended maximum of ${Math.floor(AUDIO_LIMITS.DURATION_WARNING_SECONDS / 60)}min; processing may take longer`
-    );
-  }
-  return {
-    valid: errors.length === 0,
-    errors,
-    warnings
-  };
-}
-function validateAudioFileMetadata(meta) {
-  const errors = [];
-  const warnings = [];
-  const lastDot = meta.name.lastIndexOf(".");
-  const ext = lastDot > 0 ? meta.name.slice(lastDot + 1).toLowerCase() : void 0;
-  if (!SUPPORTED_AUDIO_FORMATS.includes(ext)) {
-    errors.push(
-      `Unsupported audio format: "${meta.name}" (extension: ${ext ?? "none"}). Supported: ${SUPPORTED_AUDIO_FORMATS.join(", ")}`
-    );
-  }
-  if (meta.size !== void 0) {
-    if (!Number.isFinite(meta.size) || meta.size < 0) {
-      errors.push(`Invalid file size for "${meta.name}": ${meta.size}`);
-    } else if (meta.size === 0) {
-      errors.push(`Audio file "${meta.name}" is empty (0 bytes)`);
-    } else if (meta.size > AUDIO_LIMITS.MAX_FILE_SIZE_BYTES) {
-      errors.push(
-        `File "${meta.name}" size ${(meta.size / (1024 * 1024)).toFixed(1)}MB exceeds maximum ${(AUDIO_LIMITS.MAX_FILE_SIZE_BYTES / (1024 * 1024)).toFixed(0)}MB`
-      );
+/**
+ * REQ-142: Pipeline-level audio input validation.
+ *
+ * Validates file size (EDGE-101) and minimum duration (EDGE-102)
+ * using the centralized AUDIO_LIMITS configuration.
+ * Works with File objects (browser) and requires no DOM for size checks.
+ * REQ-148: Server-side audio metadata validation for API boundary.
+ */
+import { AUDIO_LIMITS, SUPPORTED_AUDIO_FORMATS } from '../config/limits.js';
+/** Minimum duration in seconds below which audio is rejected (EDGE-102) */
+export const MIN_AUDIO_DURATION_SECONDS = 1;
+/**
+ * Validate a File object against audio limits.
+ * Checks: empty file, file size (EDGE-101), and file type.
+ * Duration validation requires browser APIs and is handled separately
+ * via AudioPreprocessor.validateDuration() or getAudioDuration().
+ */
+export function validateAudioFile(file) {
+    const errors = [];
+    const warnings = [];
+    // Empty file check
+    if (file.size === 0) {
+        errors.push('Audio file is empty (0 bytes)');
     }
-  }
-  return {
-    valid: errors.length === 0,
-    errors,
-    warnings
-  };
+    // File size limit (EDGE-101)
+    if (file.size > AUDIO_LIMITS.MAX_FILE_SIZE_BYTES) {
+        errors.push(`File size ${(file.size / (1024 * 1024)).toFixed(1)}MB exceeds maximum allowed size ${(AUDIO_LIMITS.MAX_FILE_SIZE_BYTES / (1024 * 1024)).toFixed(0)}MB`);
+    }
+    // File type check
+    const validTypes = [
+        'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/wave',
+        'audio/ogg', 'audio/x-ogg', 'audio/mp4', 'audio/x-m4a',
+        'audio/webm',
+    ];
+    // Base transcription formats from centralized config, plus browser-only 'webm'
+    const validExtensions = [...SUPPORTED_AUDIO_FORMATS, 'webm'];
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    const typeValid = validTypes.some(t => file.type === t) || (file.type?.startsWith('audio/') ?? false);
+    const extValid = ext !== undefined && validExtensions.includes(ext);
+    if (!typeValid && !extValid) {
+        errors.push(`Unsupported audio file: "${file.name}" (type: ${file.type || 'unknown'}). Supported formats: ${validExtensions.join(', ')}`);
+    }
+    return {
+        valid: errors.length === 0,
+        errors,
+        warnings,
+    };
 }
-export {
-  MIN_AUDIO_DURATION_SECONDS,
-  validateAudioDuration,
-  validateAudioFile,
-  validateAudioFileMetadata
-};
+/**
+ * Validate audio duration in seconds against limits.
+ * EDGE-102: Reject audio shorter than MIN_AUDIO_DURATION_SECONDS.
+ * EDGE-103: Warn for audio longer than DURATION_WARNING_SECONDS.
+ */
+export function validateAudioDuration(durationSeconds) {
+    const errors = [];
+    const warnings = [];
+    if (!Number.isFinite(durationSeconds) || durationSeconds < 0) {
+        errors.push(`Invalid audio duration: ${durationSeconds}`);
+        return { valid: false, errors, warnings };
+    }
+    // EDGE-102: Minimum duration check
+    if (durationSeconds < MIN_AUDIO_DURATION_SECONDS) {
+        errors.push(`Audio duration ${durationSeconds.toFixed(2)}s is below minimum ${MIN_AUDIO_DURATION_SECONDS}s`);
+    }
+    // EDGE-103: Duration warning for long audio
+    if (durationSeconds > AUDIO_LIMITS.DURATION_WARNING_SECONDS) {
+        warnings.push(`Audio duration ${(durationSeconds / 60).toFixed(0)}min exceeds recommended maximum of ${Math.floor(AUDIO_LIMITS.DURATION_WARNING_SECONDS / 60)}min; processing may take longer`);
+    }
+    return {
+        valid: errors.length === 0,
+        errors,
+        warnings,
+    };
+}
+/**
+ * REQ-148: Validate audio file metadata on the server side (no File object needed).
+ *
+ * Checks filename extension against SUPPORTED_AUDIO_FORMATS and optional
+ * file size against AUDIO_LIMITS.MAX_FILE_SIZE_BYTES.
+ * Used at the API boundary to reject invalid audio before pipeline processing.
+ */
+export function validateAudioFileMetadata(meta) {
+    const errors = [];
+    const warnings = [];
+    // Extension check
+    const lastDot = meta.name.lastIndexOf('.');
+    const ext = lastDot > 0 ? meta.name.slice(lastDot + 1).toLowerCase() : undefined;
+    if (!SUPPORTED_AUDIO_FORMATS.includes(ext)) {
+        errors.push(`Unsupported audio format: "${meta.name}" (extension: ${ext ?? 'none'}). Supported: ${SUPPORTED_AUDIO_FORMATS.join(', ')}`);
+    }
+    // File size checks (optional — skip when size is unknown).
+    // Reject non-finite (Infinity/NaN — reachable from JSON.parse('1e400') at the
+    // API boundary) and negative sizes outright, mirroring the guard already in
+    // validateAudioDuration. A file size can be neither; without this an API
+    // caller can submit {"size": -1e400} or {"size": -100} and pass validation.
+    if (meta.size !== undefined) {
+        if (!Number.isFinite(meta.size) || meta.size < 0) {
+            errors.push(`Invalid file size for "${meta.name}": ${meta.size}`);
+        }
+        else if (meta.size === 0) {
+            errors.push(`Audio file "${meta.name}" is empty (0 bytes)`);
+        }
+        else if (meta.size > AUDIO_LIMITS.MAX_FILE_SIZE_BYTES) {
+            errors.push(`File "${meta.name}" size ${(meta.size / (1024 * 1024)).toFixed(1)}MB exceeds maximum ${(AUDIO_LIMITS.MAX_FILE_SIZE_BYTES / (1024 * 1024)).toFixed(0)}MB`);
+        }
+    }
+    return {
+        valid: errors.length === 0,
+        errors,
+        warnings,
+    };
+}

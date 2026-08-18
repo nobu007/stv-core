@@ -1,9 +1,50 @@
-import {
-  reportCorruption,
-  setCorruptionHandler
-} from "../chunk-N24QPVFO.js";
-import "../chunk-NKCCCSWP.js";
-export {
-  reportCorruption,
-  setCorruptionHandler
-};
+/**
+ * Centralized corruption-reporting utility.
+ *
+ * Provides a single entry point for all localStorage / deserialization
+ * corruption events.  Each call:
+ *   1. Emits a structured logger.warn so the event appears in logs
+ *   2. Forwards to an optional custom handler (telemetry, debug overlay, etc.)
+ *   3. Returns the report object so callers can inspect or chain on it
+ *
+ * Future loadObject / type-guard call-sites should use this instead of
+ * hand-rolling console.warn at each location.
+ */
+import { logger } from './logger.js';
+let activeHandler = null;
+/**
+ * Install (or remove) a global corruption handler.
+ * Pass `null` to uninstall.
+ */
+export function setCorruptionHandler(handler) {
+    activeHandler = handler;
+}
+/**
+ * Report a corruption event.
+ *
+ * @param source    Logical source identifier
+ * @param detail    What was detected
+ * @param recovered Whether the caller recovered (default: true)
+ * @returns         The structured report object
+ */
+export function reportCorruption(source, detail, recovered = true) {
+    const report = {
+        source,
+        detail,
+        timestamp: new Date().toISOString(),
+        recovered,
+    };
+    // Always log so observability is guaranteed even without a handler
+    logger.warn(`[Corruption:${source}] ${detail} (recovered=${recovered})`);
+    // Forward to optional handler for telemetry / debug overlay
+    if (activeHandler) {
+        try {
+            activeHandler(report);
+        }
+        catch (handlerError) {
+            // Handler errors must never propagate to the caller, but should be logged
+            logger.error('[report-corruption] Corruption handler threw:', handlerError);
+        }
+    }
+    return report;
+}
