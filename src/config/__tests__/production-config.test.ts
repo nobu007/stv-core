@@ -4,7 +4,7 @@
  */
 
 import { ProductionConfigManager } from '../production-config';
-import { logger } from '@/utils/logger';
+import { logger } from '../../utils/logger';
 
 // Mock logger. Includes setLevel/getLevel + LogLevel because updateConfig /
 // resetConfig now propagate monitoring.logLevel to the logger (REQ-059); the

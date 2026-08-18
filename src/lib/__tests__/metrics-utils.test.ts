@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { computePercentiles, percentileCeil, percentChange, roundTo, heapUsageRatio, heapUsagePercent } from '@/lib/metrics-utils';
+import { computePercentiles, percentileCeil, percentChange, roundTo, heapUsageRatio, heapUsagePercent } from '../metrics-utils';
 
 /**
  * Canonical single-source percentile behavior lock.

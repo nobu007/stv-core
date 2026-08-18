@@ -33,7 +33,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { ProductionConfigManager } from '../production-config';
-import { logger, LogLevel } from '@/utils/logger';
+import { logger, LogLevel } from '../../utils/logger';
 
 // In-memory localStorage so loadConfigOverrides / updateConfig persist are
 // deterministic and do not touch the real (absent-in-node) storage.

@@ -34,39 +34,3 @@ describe('DiagramType completeness', () => {
     }
   });
 });
-
-/**
- * Verify that animation-strategies STRATEGY_MAP covers all types.
- */
-describe('STRATEGY_MAP completeness', () => {
-  it('should provide a strategy for every DiagramType', async () => {
-    const { getAnimationStrategy } = await import('@/remotion/animation-strategies');
-    for (const type of ALL_DIAGRAM_TYPES) {
-      const strategy = getAnimationStrategy(type);
-      expect(strategy).toBeDefined();
-      expect(typeof strategy.getNodeAnimations).toBe('function');
-      expect(typeof strategy.getEdgeAnimations).toBe('function');
-    }
-  });
-
-  it('should map extended types to correct base strategies', async () => {
-    const {
-      getAnimationStrategy,
-      FLOW_STRATEGY,
-      TREE_STRATEGY,
-      MATRIX_STRATEGY,
-    } = await import('@/remotion/animation-strategies');
-
-    // flow aliases
-    expect(getAnimationStrategy('flowchart')).toBe(FLOW_STRATEGY);
-    expect(getAnimationStrategy('network')).toBe(FLOW_STRATEGY);
-    expect(getAnimationStrategy('general')).toBe(FLOW_STRATEGY);
-
-    // tree aliases
-    expect(getAnimationStrategy('conceptmap')).toBe(TREE_STRATEGY);
-    expect(getAnimationStrategy('mindmap')).toBe(TREE_STRATEGY);
-
-    // matrix aliases
-    expect(getAnimationStrategy('comparison')).toBe(MATRIX_STRATEGY);
-  });
-});

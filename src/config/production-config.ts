@@ -4,9 +4,9 @@
  * Following custom instructions for production readiness enhancement
  */
 
-import { logger, LogLevel } from '@/utils/logger';
-import { safeLoadFromStorage, safeRemoveFromStorage, safeSaveToStorage } from '@/utils/safe-storage';
-import { bytesToMb } from '@/lib/metrics-utils';
+import { logger, LogLevel } from '../utils/logger';
+import { safeLoadFromStorage, safeRemoveFromStorage, safeSaveToStorage } from '../utils/safe-storage';
+import { bytesToMb } from '../lib/metrics-utils';
 
 export interface ProductionEnvironment {
   name: 'development' | 'staging' | 'production';

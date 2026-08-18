@@ -10,11 +10,11 @@
  * in `prometheus-label-escape.ts`; both emitters import it. This file pins the
  * unified behavior so a re-divergence is caught immediately.
  *
- * Reuses the shared fuzz helper (@tests/helpers/fuzz) for determinism.
+ * Reuses the shared fuzz helper (src/test-support/fuzz.ts, vendored) for determinism.
  */
 
 import { describe, it, expect } from '@jest/globals';
-import { mulberry32 } from '@tests/helpers/fuzz';
+import { mulberry32 } from '../../test-support/fuzz';
 import {
   sanitizePrometheusLabel,
   MAX_PROMETHEUS_LABEL_LENGTH,

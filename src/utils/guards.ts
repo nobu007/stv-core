@@ -9,7 +9,7 @@
  * are consolidated here so future code can't reintroduce unguarded access.
  */
 
-import { DiagramType, isDiagramType } from '@/types/diagram';
+import { DiagramType, isDiagramType } from '../types/diagram';
 
 /**
  * Return `value` when it is a finite number, otherwise `defaultValue`.

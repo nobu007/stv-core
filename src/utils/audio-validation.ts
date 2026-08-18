@@ -7,7 +7,7 @@
  * REQ-148: Server-side audio metadata validation for API boundary.
  */
 
-import { AUDIO_LIMITS, SUPPORTED_AUDIO_FORMATS } from '@/config/limits';
+import { AUDIO_LIMITS, SUPPORTED_AUDIO_FORMATS } from '../config/limits';
 
 /** Minimum duration in seconds below which audio is rejected (EDGE-102) */
 export const MIN_AUDIO_DURATION_SECONDS = 1;

@@ -5,7 +5,7 @@ import {
   MIN_AUDIO_DURATION_SECONDS,
   type AudioValidationResult,
 } from '../audio-validation';
-import { AUDIO_LIMITS } from '@/config/limits';
+import { AUDIO_LIMITS } from '../../config/limits';
 
 // Minimal File-like constructor for jsdom
 function makeFile(name: string, size: number, type: string): File {

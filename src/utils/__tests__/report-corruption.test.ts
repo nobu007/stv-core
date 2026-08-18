@@ -18,7 +18,7 @@ jest.mock('@/utils/logger', () => ({
   },
 }));
 
-import { logger } from '@/utils/logger';
+import { logger } from '../logger';
 
 describe('reportCorruption', () => {
   let warnSpy: jest.SpyInstance;
